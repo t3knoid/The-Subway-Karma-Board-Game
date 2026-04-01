@@ -28,7 +28,7 @@ public static class GameBootstrap
     private static void EnsureBoard()
     {
         // If there's already a BoardDisplay in the scene, leave it alone.
-        if (Object.FindFirstObjectByType<BoardDisplay>() != null) return;
+        if (Object.FindAnyObjectByType<BoardDisplay>() != null) return;
 
         var go = new GameObject("Board");
         go.AddComponent<SpriteRenderer>();
@@ -38,7 +38,7 @@ public static class GameBootstrap
 
     private static void EnsureBoardSetup()
     {
-        if (Object.FindFirstObjectByType<BoardSetup>() != null) return;
+        if (Object.FindAnyObjectByType<BoardSetup>() != null) return;
 
         var go = new GameObject("BoardSetup");
         go.AddComponent<BoardSetup>();
