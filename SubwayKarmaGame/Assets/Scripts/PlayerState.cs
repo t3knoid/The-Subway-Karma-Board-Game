@@ -37,6 +37,10 @@ public class PlayerState : MonoBehaviour
     public string     playerName  = "Player";
     public PlayerType playerType  = PlayerType.Human;
 
+    // -- Token --------------------------------------------------------------
+    /// <summary>Visual subway-car token for this player. Assigned after game mode is chosen.</summary>
+    public PlayerToken Token;
+
     // -- Board position -----------------------------------------------------
     public int boardIndex = 0;
 

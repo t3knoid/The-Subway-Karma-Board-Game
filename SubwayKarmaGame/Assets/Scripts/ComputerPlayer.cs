@@ -18,14 +18,8 @@ public class ComputerPlayer : MonoBehaviour
     /// PlayerState owned by this CPU player. Set by GameSetupScreen.
     public PlayerState playerState;
 
-    // -- Token visuals ------------------------------------------------------
-    private const int   TokenTexRes  = 64;
-    private const float TokenPPU     = 100f;
-    private const float TokenOffsetX =  0.15f;
-    private const float TokenOffsetY = -0.15f;
-    private const float TokenZ       = -1f;
-
-    private GameObject _token;
+    // -- Token -------------------------------------------------------------
+    private PlayerToken _token;
 
     // -- Turn state ---------------------------------------------------------
     private bool _skipNextTurn = false;   // set by LateTrain penalty
@@ -43,50 +37,9 @@ public class ComputerPlayer : MonoBehaviour
             Debug.LogError("[ComputerPlayer] playerState not assigned.");
             return;
         }
-        CreateToken();
-        PlaceToken(playerState.boardIndex);
-    }
-
-    // -- Token construction -------------------------------------------------
-
-    private void CreateToken()
-    {
-        _token = new GameObject("ComputerToken");
-        DontDestroyOnLoad(_token);
-
-        var sr = _token.AddComponent<SpriteRenderer>();
-        sr.sprite       = MakeCircleSprite(new Color(0.72f, 0.22f, 1f));  // vivid purple
-        sr.sortingOrder = 20;
-    }
-
-    private static Sprite MakeCircleSprite(Color color)
-    {
-        int res = TokenTexRes;
-        var tex = new Texture2D(res, res, TextureFormat.RGBA32, false);
-        float cx = res * 0.5f - 0.5f;
-        float cy = res * 0.5f - 0.5f;
-        float r2 = cx * cx;
-
-        for (int y = 0; y < res; y++)
-            for (int x = 0; x < res; x++)
-            {
-                float dx = x - cx, dy = y - cy;
-                tex.SetPixel(x, y, dx * dx + dy * dy <= r2 ? color : Color.clear);
-            }
-
-        tex.Apply();
-        // Token world radius ≈ 0.3 world units
-        float ppu = TokenPPU / (res * 0.3f / res);
-        return Sprite.Create(tex, new Rect(0, 0, res, res), new Vector2(0.5f, 0.5f), ppu);
-    }
-
-    private void PlaceToken(int boardIndex)
-    {
-        if (_token == null) return;
-        var zone = GameObject.Find($"TapZone_{boardIndex:D2}");
-        if (zone == null) return;
-        _token.transform.position =
-            zone.transform.position + new Vector3(TokenOffsetX, TokenOffsetY, TokenZ);
+        // Create CPU token (slot 1 = Crimson); store on playerState so GameManager can snap it on reset.
+        _token = PlayerToken.Create(playerState.playerId, playerState.boardIndex);
+        playerState.Token = _token;
     }
 
     // -- Public API ---------------------------------------------------------
@@ -120,7 +73,7 @@ public class ComputerPlayer : MonoBehaviour
 
         // ─ Advance token ────────────────────────────────────────────────────
         playerState.boardIndex = (playerState.boardIndex + steps) % BoardManager.BoardSize;
-        PlaceToken(playerState.boardIndex);
+        yield return AnimateToken(playerState.boardIndex);
 
         // ─ Process landing square ───────────────────────────────────────────
         yield return ProcessSquare(playerState.boardIndex);
@@ -153,9 +106,9 @@ public class ComputerPlayer : MonoBehaviour
             // ── Early Train: move 1 extra space forward ──────────────────────
             case SquareType.EarlyTrain:
                 playerState.boardIndex = (playerState.boardIndex + 1) % BoardManager.BoardSize;
-                PlaceToken(playerState.boardIndex);
+                yield return AnimateToken(playerState.boardIndex);
                 Debug.Log($"[ComputerPlayer] Early Train — advanced to {playerState.boardIndex}.");
-                yield return new WaitForSeconds(0.3f);
+                yield return new WaitForSeconds(0.1f);
                 // Apply landing effects for the extra square (no recursion guard needed;
                 // EarlyTrain doesn't chain back to EarlyTrain by board design).
                 yield return ProcessSquare(playerState.boardIndex);
@@ -165,9 +118,8 @@ public class ComputerPlayer : MonoBehaviour
             case SquareType.SickPassenger:
                 playerState.boardIndex =
                     (playerState.boardIndex - 1 + BoardManager.BoardSize) % BoardManager.BoardSize;
-                PlaceToken(playerState.boardIndex);
+                yield return AnimateToken(playerState.boardIndex);
                 Debug.Log($"[ComputerPlayer] Sick Passenger — moved back to {playerState.boardIndex}.");
-                yield return new WaitForSeconds(0.3f);
                 break;
 
             // ── Late Train: lose the NEXT turn ──────────────────────────────
@@ -186,7 +138,7 @@ public class ComputerPlayer : MonoBehaviour
                     : Random.Range(1, 7);
                 Debug.Log($"[ComputerPlayer] Express Train! Bonus spin: {bonus}.");
                 playerState.boardIndex = (playerState.boardIndex + bonus) % BoardManager.BoardSize;
-                PlaceToken(playerState.boardIndex);
+                yield return AnimateToken(playerState.boardIndex);
                 // Process bonus landing square once (no recursive express chains).
                 var bonusSquare = BoardManager.Instance.GetSquare(playerState.boardIndex);
                 if (bonusSquare.type == SquareType.Station)
@@ -204,6 +156,14 @@ public class ComputerPlayer : MonoBehaviour
     }
 
     // -- Helpers ------------------------------------------------------------
+
+    private IEnumerator AnimateToken(int boardIndex)
+    {
+        if (_token == null) { yield return new WaitForSeconds(0.18f); yield break; }
+        bool done = false;
+        _token.MoveTo(boardIndex, () => done = true);
+        yield return new UnityEngine.WaitUntil(() => done);
+    }
 
     private void AdvanceTurn()
     {

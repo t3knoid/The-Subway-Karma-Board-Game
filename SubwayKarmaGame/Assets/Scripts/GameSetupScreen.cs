@@ -174,6 +174,10 @@ public class GameSetupScreen : MonoBehaviour
         if (vsComputer)
             CreateComputerOpponent();
 
+        // Create the human player's subway car token (slot 0 = MTA Blue).
+        if (PlayerState.Instance != null)
+            PlayerState.Instance.Token = PlayerToken.Create(0, PlayerState.Instance.boardIndex);
+
         // Re-enable spinner — human always goes first (index 0).
         if (SpinnerController.Instance != null)
             SpinnerController.Instance.gameObject.SetActive(true);

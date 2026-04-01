@@ -111,7 +111,7 @@ public class GameManager : MonoBehaviour
     {
         IsGameOver = false;
         CurrentTurnIndex = 0;
-        foreach (var p in _players) p.Reset();
+        foreach (var p in _players) { p.Reset(); p.Token?.SnapTo(0); }
         KarmaDeck.Instance?.BuildDeck();
         Debug.Log("[GameManager] Game reset.");
     }
