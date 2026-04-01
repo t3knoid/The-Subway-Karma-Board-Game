@@ -19,6 +19,7 @@ public static class GameBootstrap
         EnsureGameManager();
         EnsureScoreTracker();
         EnsureResultsScreen();
+        EnsureGameSetupScreen();
     }
 
     private static void EnsureBoardManager()
@@ -109,5 +110,15 @@ public static class GameBootstrap
         go.AddComponent<ResultsScreen>();
         Object.DontDestroyOnLoad(go);
         Debug.Log("[GameBootstrap] Created ResultsScreen");
+    }
+
+    private static void EnsureGameSetupScreen()
+    {
+        if (Object.FindAnyObjectByType<GameSetupScreen>() != null) return;
+
+        var go = new GameObject("GameSetupScreen");
+        go.AddComponent<GameSetupScreen>();
+        Object.DontDestroyOnLoad(go);
+        Debug.Log("[GameBootstrap] Created GameSetupScreen");
     }
 }

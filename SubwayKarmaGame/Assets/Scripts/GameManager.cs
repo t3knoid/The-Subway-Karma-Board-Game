@@ -35,7 +35,8 @@ public class GameManager : MonoBehaviour
     public PlayerState CurrentPlayer =>
         _players.Count > 0 ? _players[CurrentTurnIndex] : null;
 
-    private readonly List<PlayerState> _players = new List<PlayerState>();
+    private readonly List<PlayerState> _players         = new List<PlayerState>();
+    private ComputerPlayer             _computerPlayer;
 
     // -- Lifecycle ----------------------------------------------------------
     void Awake()
@@ -73,7 +74,17 @@ public class GameManager : MonoBehaviour
     }
 
     /// <summary>
+    /// Registers the ComputerPlayer controller used to auto-drive CPU turns.
+    /// </summary>
+    public void RegisterComputerPlayer(ComputerPlayer cp)
+    {
+        _computerPlayer = cp;
+        Debug.Log($"[GameManager] ComputerPlayer registered.");
+    }
+
+    /// <summary>
     /// Advances to the next player's turn (wraps around).
+    /// Enables the spinner for human turns; triggers CPU turns automatically.
     /// </summary>
     public void NextTurn()
     {
@@ -81,6 +92,15 @@ public class GameManager : MonoBehaviour
         CurrentTurnIndex = (CurrentTurnIndex + 1) % _players.Count;
         Debug.Log($"[GameManager] Turn → {CurrentPlayer.playerName}");
         OnTurnChanged?.Invoke(CurrentPlayer);
+
+        // Show spinner only on the human player's turn.
+        var spinner = SpinnerController.Instance;
+        if (spinner != null)
+            spinner.gameObject.SetActive(CurrentPlayer.playerType == PlayerType.Human);
+
+        // Auto-drive the computer's turn.
+        if (CurrentPlayer.playerType == PlayerType.Computer && _computerPlayer != null)
+            _computerPlayer.TakeTurn();
     }
 
     /// <summary>

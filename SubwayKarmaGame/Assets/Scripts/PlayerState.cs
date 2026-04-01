@@ -3,6 +3,11 @@ using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
+/// Identifies whether a player is human-controlled or CPU-controlled.
+/// </summary>
+public enum PlayerType { Human, Computer }
+
+/// <summary>
 /// Holds the runtime state for a single player:
 ///   - karmaTotal  : running sum of all drawn card points
 ///   - hand        : ordered list of every card drawn this game
@@ -28,8 +33,9 @@ public class PlayerState : MonoBehaviour
     }
 
     // -- Identity -----------------------------------------------------------
-    public int    playerId   = 0;
-    public string playerName = "Player";
+    public int        playerId    = 0;
+    public string     playerName  = "Player";
+    public PlayerType playerType  = PlayerType.Human;
 
     // -- Board position -----------------------------------------------------
     public int boardIndex = 0;

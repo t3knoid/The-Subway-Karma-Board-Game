@@ -29,6 +29,9 @@ using UnityEngine;
 /// </summary>
 public class SpinnerController : MonoBehaviour
 {
+    // -- Singleton ----------------------------------------------------------
+    public static SpinnerController Instance { get; private set; }
+
     // -- Events -------------------------------------------------------------
     /// Fired when the spin animation ends. Argument: integer result 1-6.
     public event Action<int> OnSpinComplete;
@@ -78,6 +81,8 @@ public class SpinnerController : MonoBehaviour
     // -- Lifecycle ----------------------------------------------------------
     void Awake()
     {
+        if (Instance != null && Instance != this) { Destroy(gameObject); return; }
+        Instance = this;
         _audio = GetComponent<AudioSource>();
         if (_audio == null) _audio = gameObject.AddComponent<AudioSource>();
     }
