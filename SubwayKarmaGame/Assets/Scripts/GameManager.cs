@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 
 /// <summary>
@@ -23,9 +24,13 @@ public class GameManager : MonoBehaviour
     /// Fired when a new player is registered.
     public event Action<PlayerState> OnPlayerRegistered;
 
+    /// Fired when the game ends (deck exhausted). Argument: ranked player list.
+    public event Action<List<PlayerState>> OnGameOver;
+
     // -- State --------------------------------------------------------------
     public IReadOnlyList<PlayerState> Players => _players;
     public int CurrentTurnIndex { get; private set; } = 0;
+    public bool IsGameOver { get; private set; } = false;
 
     public PlayerState CurrentPlayer =>
         _players.Count > 0 ? _players[CurrentTurnIndex] : null;
@@ -38,6 +43,19 @@ public class GameManager : MonoBehaviour
         if (Instance != null && Instance != this) { Destroy(gameObject); return; }
         Instance = this;
         DontDestroyOnLoad(gameObject);
+    }
+
+    void Start()
+    {
+        // Subscribe to deck-exhausted event once KarmaDeck is ready.
+        if (KarmaDeck.Instance != null)
+            KarmaDeck.Instance.OnDeckExhausted += TriggerEndGame;
+    }
+
+    void OnDestroy()
+    {
+        if (KarmaDeck.Instance != null)
+            KarmaDeck.Instance.OnDeckExhausted -= TriggerEndGame;
     }
 
     // -- Public API ---------------------------------------------------------
@@ -71,9 +89,27 @@ public class GameManager : MonoBehaviour
     /// </summary>
     public void ResetGame()
     {
+        IsGameOver = false;
         CurrentTurnIndex = 0;
         foreach (var p in _players) p.Reset();
         KarmaDeck.Instance?.BuildDeck();
         Debug.Log("[GameManager] Game reset.");
+    }
+
+    /// <summary>
+    /// Called when the karma deck is exhausted. Sorts players by karmaTotal
+    /// descending and fires OnGameOver with the ranked list.
+    /// </summary>
+    public void TriggerEndGame()
+    {
+        if (IsGameOver) return;
+        IsGameOver = true;
+
+        var ranked = _players.OrderByDescending(p => p.karmaTotal).ToList();
+        Debug.Log("[GameManager] Game over. Rankings:");
+        for (int i = 0; i < ranked.Count; i++)
+            Debug.Log($"  #{i + 1}  {ranked[i].playerName}: {ranked[i].karmaTotal} karma");
+
+        OnGameOver?.Invoke(ranked);
     }
 }

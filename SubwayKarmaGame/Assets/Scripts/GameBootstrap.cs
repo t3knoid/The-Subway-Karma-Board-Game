@@ -18,6 +18,7 @@ public static class GameBootstrap
         EnsurePlayerState();
         EnsureGameManager();
         EnsureScoreTracker();
+        EnsureResultsScreen();
     }
 
     private static void EnsureBoardManager()
@@ -98,5 +99,15 @@ public static class GameBootstrap
         go.AddComponent<ScoreTracker>();
         Object.DontDestroyOnLoad(go);
         Debug.Log("[GameBootstrap] Created ScoreTracker");
+    }
+
+    private static void EnsureResultsScreen()
+    {
+        if (Object.FindAnyObjectByType<ResultsScreen>() != null) return;
+
+        var go = new GameObject("ResultsScreen");
+        go.AddComponent<ResultsScreen>();
+        Object.DontDestroyOnLoad(go);
+        Debug.Log("[GameBootstrap] Created ResultsScreen");
     }
 }
