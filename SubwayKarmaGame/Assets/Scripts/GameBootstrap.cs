@@ -16,6 +16,8 @@ public static class GameBootstrap
         EnsureSpinner();
         EnsureKarmaDeck();
         EnsurePlayerState();
+        EnsureGameManager();
+        EnsureScoreTracker();
     }
 
     private static void EnsureBoardManager()
@@ -73,5 +75,28 @@ public static class GameBootstrap
         var go = new GameObject("PlayerState");
         go.AddComponent<PlayerState>();
         Debug.Log("[GameBootstrap] Created PlayerState");
+    }
+
+    private static void EnsureGameManager()
+    {
+        if (GameManager.Instance != null) return;
+
+        var go = new GameObject("GameManager");
+        go.AddComponent<GameManager>();
+        Debug.Log("[GameBootstrap] Created GameManager");
+
+        // Register the solitaire player once both singletons are ready.
+        if (PlayerState.Instance != null)
+            GameManager.Instance.RegisterPlayer(PlayerState.Instance);
+    }
+
+    private static void EnsureScoreTracker()
+    {
+        if (Object.FindAnyObjectByType<ScoreTracker>() != null) return;
+
+        var go = new GameObject("ScoreTracker");
+        go.AddComponent<ScoreTracker>();
+        Object.DontDestroyOnLoad(go);
+        Debug.Log("[GameBootstrap] Created ScoreTracker");
     }
 }

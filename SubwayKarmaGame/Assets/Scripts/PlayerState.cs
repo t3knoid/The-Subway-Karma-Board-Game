@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -12,6 +13,10 @@ using UnityEngine;
 /// </summary>
 public class PlayerState : MonoBehaviour
 {
+    // -- Events -------------------------------------------------------------
+    /// Fired after karmaTotal changes. Argument: new total.
+    public event Action<int> OnKarmaChanged;
+
     // -- Singleton (solitaire) ----------------------------------------------
     public static PlayerState Instance { get; private set; }
 
@@ -48,6 +53,8 @@ public class PlayerState : MonoBehaviour
 
         Debug.Log($"[PlayerState] {playerName} drew '{card.title}' " +
                   $"({(pts >= 0 ? "+" : "")}{pts}) — total karma: {karmaTotal}");
+
+        OnKarmaChanged?.Invoke(karmaTotal);
     }
 
     /// <summary>Resets state for a new game or Play Again.</summary>
