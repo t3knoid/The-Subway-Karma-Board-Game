@@ -7,21 +7,20 @@ using UnityEngine;
 /// matching the physical board-game spinner.
 ///
 /// The physical spinner has:
-///   - A static numbered wheel (background circle, does not rotate).
-///   - A rotating arrow whose pivot dot sits at the wheel centre.
+///   - A static numbered wheel (spinner.png, 2129x2107, transparent bg).
+///   - A rotating arrow (spinner_arrow.png, 948x452, transparent bg).
 ///     Players flick the arrow; it spins and stops on a number.
 ///
-/// Segment layout � clockwise from 12 o'clock (spinner.jpg):
+/// Segment layout clockwise from 12 o'clock:
 ///   Seg 1 ->   0 deg   Seg 2 ->  60 deg   Seg 3 -> 120 deg
 ///   Seg 4 -> 180 deg   Seg 5 -> 240 deg   Seg 6 -> 300 deg
 ///
-/// Image measurements (spinner.jpg 2550x3300):
-///   Dividing line Y = 2569  (image top-down)
-///     Wheel = rows 0 - 2569 (top), height 2569 px
-///     Arrow = rows 2569-3300 (bottom), height 731 px
-///   Arrow pivot dot at full-image coords (1085, 2789)
-///     -> arrow-local: x=1085, y_from_bottom = (3300-2789) = 511
-///     -> pivot fraction: (1085/2550, 511/731) = (0.4255, 0.6990)
+/// Image measurements:
+///   spinner.png  2129x2107 — pivot dot at (1062, 1062) image top-down
+///     Unity pivot fraction: (1062/2129, 1045/2107) = (0.4989, 0.4960) ~ centre
+///   spinner_arrow.png  948x452 — pivot dot at (85, 230) image top-down
+///     Unity pivot fraction: (85/948, 222/452) = (0.0897, 0.4912)
+///     Pivot near left edge; arrow extends rightward — matches Unity 0-deg = right.
 ///
 /// Usage:
 ///   spinner.Spin();                      // animated tap spin
@@ -50,15 +49,18 @@ public class SpinnerController : MonoBehaviour
     // have rotated CW by:   theta = (N-1)*60 - 90   (mod 360)
     private const float ArrowInitialDeg = 90f;
 
-    // -- Image measurements (spinner.jpg 2550x3300 original) ----------------
-    // Stored as fractions so the code works even if Unity resizes the texture.
-    private const float PPU          = 100f;
-    private const float DivideFrac   = 2569f / 3300f;  // wheel/arrow split
-    // Arrow pivot (1085,2789) in original image coords:
-    //   X fraction of full width:              1085/2550 = 0.4255
-    //   Y fraction of arrow section from bottom: (3300-2789)/(3300-2569) = 511/731 = 0.6990
-    private const float ArrowPivotX = 1085f / 2550f;
-    private const float ArrowPivotY = 511f  / 731f;
+    // -- Image measurements -------------------------------------------------
+    private const float PPU = 100f;
+
+    // spinner.png 2129x2107 — pivot dot at image pixel (1062, 1062)
+    // Unity Y is bottom-up: pivotY = (2107-1062)/2107
+    private const float WheelPivotX = 1062f / 2129f;  // 0.4989
+    private const float WheelPivotY = 1045f / 2107f;  // 0.4960
+
+    // spinner_arrow.png 948x452 — pivot dot at image pixel (85, 230)
+    // Unity Y is bottom-up: pivotY = (452-230)/452
+    private const float ArrowPivotX = 85f  / 948f;   // 0.0897
+    private const float ArrowPivotY = 222f / 452f;   // 0.4912
 
     // Spinner wheel fills this fraction of camera height.
     private const float ViewHeightFraction = 0.70f;
@@ -88,61 +90,65 @@ public class SpinnerController : MonoBehaviour
     // -- Construction -------------------------------------------------------
     private void BuildSpinner()
     {
-        Texture2D tex = Resources.Load<Texture2D>("spinner");
-        if (tex == null)
+        Texture2D wheelTex = Resources.Load<Texture2D>("spinner");
+        Texture2D arrowTex = Resources.Load<Texture2D>("spinner_arrow");
+
+        if (wheelTex == null)
         {
             Debug.LogError("[SpinnerController] Could not load 'spinner' from Resources. " +
-                           "Ensure Assets/Resources/spinner.jpg exists.");
+                           "Ensure Assets/Resources/spinner.png exists.");
+            return;
+        }
+        if (arrowTex == null)
+        {
+            Debug.LogError("[SpinnerController] Could not load 'spinner_arrow' from Resources. " +
+                           "Ensure Assets/Resources/spinner_arrow.png exists.");
             return;
         }
 
-        // Use actual loaded dimensions so fractional measurements stay correct
-        // even if Unity ever resizes the texture (e.g. different maxTextureSize).
-        float w      = tex.width;
-        float h      = tex.height;
-        float arrowH = h * (1f - DivideFrac);  // bottom portion (arrow)
-        float wheelH = h * DivideFrac;          // top portion (wheel)
+        float wW = wheelTex.width;
+        float wH = wheelTex.height;
 
-        // Scale parent so the wheel circle fills ViewHeightFraction of camera height.
+        // Scale parent so the wheel fills ViewHeightFraction of camera height.
         Camera cam  = Camera.main;
         float camH  = cam != null ? cam.orthographicSize * 2f : 10f;
-        float scale = (camH * ViewHeightFraction) / (wheelH / PPU);
+        float scale = (camH * ViewHeightFraction) / (wH / PPU);
         transform.localScale = new Vector3(scale, scale, 1f);
         transform.position   = cam != null
             ? new Vector3(cam.transform.position.x, cam.transform.position.y, 0f)
             : Vector3.zero;
 
         // -- Wheel child: STATIC --------------------------------------------
-        // Sprite Rect in Unity coords (Y=0 at image bottom):
-        //   y = arrowH, height = wheelH
         var wheelGO = new GameObject("SpinnerWheel");
         wheelGO.transform.SetParent(transform, false);
         wheelGO.transform.localPosition = Vector3.zero;
 
         var wheelSR = wheelGO.AddComponent<SpriteRenderer>();
         wheelSR.sprite = Sprite.Create(
-            tex,
-            new Rect(0f, arrowH, w, wheelH),
-            new Vector2(0.5f, 0.5f),
+            wheelTex,
+            new Rect(0f, 0f, wW, wH),
+            new Vector2(WheelPivotX, WheelPivotY),
             PPU);
         wheelSR.sortingOrder = 10;
 
         // -- Circle collider on the PARENT so OnMouseDown fires here --------
         var col = gameObject.AddComponent<CircleCollider2D>();
-        col.radius = (w * 0.45f) / PPU;   // local units before parent scale
+        col.radius = (Mathf.Min(wW, wH) * 0.45f) / PPU;
 
         // -- Arrow child: ROTATES -------------------------------------------
-        // Sprite Rect: y=0, height=arrowH.
-        // Pivot at ArrowPivotX/Y places the dot at local (0,0) = wheel centre.
+        // Pivot (ArrowPivotX, ArrowPivotY) places the dot at local (0,0),
+        // which is the wheel centre — so the arrow orbits the correct point.
         var arrowGO = new GameObject("SpinnerArrow");
         arrowGO.transform.SetParent(transform, false);
         arrowGO.transform.localPosition = Vector3.zero;
         _arrowTransform = arrowGO.transform;
 
+        float aW = arrowTex.width;
+        float aH = arrowTex.height;
         var arrowSR = arrowGO.AddComponent<SpriteRenderer>();
         arrowSR.sprite = Sprite.Create(
-            tex,
-            new Rect(0f, 0f, w, arrowH),
+            arrowTex,
+            new Rect(0f, 0f, aW, aH),
             new Vector2(ArrowPivotX, ArrowPivotY),
             PPU);
         arrowSR.sortingOrder = 11;
