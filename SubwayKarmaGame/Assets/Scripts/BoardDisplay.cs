@@ -32,24 +32,31 @@ public class BoardDisplay : MonoBehaviour
         FitToCamera();
     }
 
-    // Also called in Start() to correct any stale camera aspect from Awake() timing.
+    // Also called in Start() to correct any stale camera state from Awake() timing.
     void Start() => FitToCamera();
 
     private void FitToCamera()
     {
         Camera cam = Camera.main;
-        if (cam == null) return;
+        if (cam == null || _renderer.sprite == null) return;
 
-        Vector2 spriteSize = _renderer.sprite != null ? _renderer.sprite.bounds.size : Vector2.zero;
+        Vector2 spriteSize = _renderer.sprite.bounds.size;
         if (spriteSize.x <= 0 || spriteSize.y <= 0) return;
 
-        // Scale so the board fills the camera height exactly.
-        // For our landscape target (aspect > board aspect 0.85) this is always the
-        // smaller scale (fit-inside), so nothing overflows horizontally.
-        float camHeight = cam.orthographicSize * 2f;
-        float scale     = camHeight / spriteSize.y;
+        // Derive the actual visible world bounds from the camera.
+        // Using ScreenToWorldPoint is robust against any projection matrix mode
+        // (physical camera gate-fit, etc.) that may adjust the effective frustum.
+        Vector3 bl = cam.ScreenToWorldPoint(new Vector3(0,              0,               1f));
+        Vector3 tr = cam.ScreenToWorldPoint(new Vector3(cam.pixelWidth, cam.pixelHeight, 1f));
+        float visibleWidth  = tr.x - bl.x;
+        float visibleHeight = tr.y - bl.y;
+
+        // Fit-inside: for a portrait board in a landscape camera, scaleY is always
+        // the limiting dimension (board aspect 0.85 < camera aspect 1.6).
+        float scale = Mathf.Min(visibleWidth / spriteSize.x, visibleHeight / spriteSize.y);
 
         transform.localScale = new Vector3(scale, scale, 1f);
-        transform.position   = Vector3.zero;
+        // Centre on the camera's actual world midpoint (handles any viewport offset).
+        transform.position   = new Vector3((bl.x + tr.x) * 0.5f, (bl.y + tr.y) * 0.5f, 0f);
     }
 }
