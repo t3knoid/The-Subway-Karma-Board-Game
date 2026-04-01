@@ -69,7 +69,6 @@ public class ResultsScreen : MonoBehaviour
     {
         var canvasGO = new GameObject("ResultsCanvas");
         canvasGO.transform.SetParent(transform, false);
-        Object.DontDestroyOnLoad(canvasGO);
 
         _canvas = canvasGO.AddComponent<Canvas>();
         _canvas.renderMode   = RenderMode.ScreenSpaceOverlay;

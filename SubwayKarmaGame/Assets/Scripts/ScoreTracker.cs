@@ -71,7 +71,6 @@ public class ScoreTracker : MonoBehaviour
     {
         var canvasGO = new GameObject("ScoreCanvas");
         canvasGO.transform.SetParent(transform, false);
-        DontDestroyOnLoad(canvasGO);
 
         _canvas = canvasGO.AddComponent<Canvas>();
         _canvas.renderMode  = RenderMode.ScreenSpaceOverlay;
