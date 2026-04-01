@@ -1,13 +1,13 @@
 using UnityEngine;
 using UnityEngine.Events;
-using UnityEngine.EventSystems;
 
 /// <summary>
 /// Attach to a GameObject with a Collider2D on each perimeter square.
-/// Handles both mouse click (WebGL desktop) and touch (mobile browser).
+/// Handles mouse click (WebGL desktop) via OnMouseDown.
+/// Touch on mobile browsers also triggers OnMouseDown through Unity's input bridge.
 /// </summary>
 [RequireComponent(typeof(Collider2D))]
-public class SquareTapHandler : MonoBehaviour, IPointerClickHandler
+public class SquareTapHandler : MonoBehaviour
 {
     [Tooltip("Index of this square in the 20-square board loop (0–19).")]
     public int squareIndex;
@@ -29,13 +29,7 @@ public class SquareTapHandler : MonoBehaviour, IPointerClickHandler
             _originalColor = _highlightRenderer.color;
     }
 
-    // Called by Unity's EventSystem for mouse click and touch tap.
-    public void OnPointerClick(PointerEventData eventData)
-    {
-        HandleTap();
-    }
-
-    // Fallback for non-EventSystem environments (e.g. Physics2D.Raycast approach).
+    // Handles mouse click (WebGL desktop) and touch (Unity maps touch to mouse on mobile web).
     void OnMouseDown()
     {
         HandleTap();
