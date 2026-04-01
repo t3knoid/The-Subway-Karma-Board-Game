@@ -32,20 +32,22 @@ public class BoardDisplay : MonoBehaviour
         FitToCamera();
     }
 
+    // Also called in Start() to correct any stale camera aspect from Awake() timing.
+    void Start() => FitToCamera();
+
     private void FitToCamera()
     {
         Camera cam = Camera.main;
         if (cam == null) return;
 
-        float camHeight = cam.orthographicSize * 2f;
-        float camWidth  = camHeight * cam.aspect;
-
-        Vector2 spriteSize = _renderer.sprite.bounds.size;
+        Vector2 spriteSize = _renderer.sprite != null ? _renderer.sprite.bounds.size : Vector2.zero;
         if (spriteSize.x <= 0 || spriteSize.y <= 0) return;
 
-        float scaleX = camWidth  / spriteSize.x;
-        float scaleY = camHeight / spriteSize.y;
-        float scale  = Mathf.Min(scaleX, scaleY); // fit-inside, preserve aspect ratio
+        // Scale so the board fills the camera height exactly.
+        // For our landscape target (aspect > board aspect 0.85) this is always the
+        // smaller scale (fit-inside), so nothing overflows horizontally.
+        float camHeight = cam.orthographicSize * 2f;
+        float scale     = camHeight / spriteSize.y;
 
         transform.localScale = new Vector3(scale, scale, 1f);
         transform.position   = Vector3.zero;
