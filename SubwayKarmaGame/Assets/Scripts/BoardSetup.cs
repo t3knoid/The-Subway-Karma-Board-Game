@@ -1,60 +1,65 @@
 using UnityEngine;
 
 /// <summary>
-/// Creates the 20 invisible tap-zone GameObjects at runtime and overlays them
+/// Creates the 22 invisible tap-zone GameObjects at runtime and overlays them
 /// on the board sprite. Positions are expressed in world space and were
-/// calculated from the 2550×3300 board.jpg at PPU=330.
+/// estimated from the 2550×3300 board.jpg at PPU=100 (world size ≈ 7.73×10).
 ///
-/// To calibrate: open the scene in the Unity Editor, run Play mode, select
-/// each TapZone child in the Hierarchy, and adjust its Transform position
-/// until the BoxCollider2D gizmo lines up with the corresponding square on
-/// the board image.  Exact width/height of each collider may also need
-/// adjustment per square type (corner vs. edge).
+/// Board layout: 22 squares clockwise — 6 on top, 5 on right, 6 on bottom, 5 on left.
+/// Stations (corners) at indices 0, 5, 11, 16.
+/// NoOp (blank) squares at indices 2, 7, 13, 18.
+///
+/// To calibrate: run Play mode, select a TapZone child in the Hierarchy, and
+/// adjust its Transform X/Y until the BoxCollider2D gizmo aligns with the
+/// matching square on the board image. Note the values, then update SquareCenters.
 /// </summary>
 public class BoardSetup : MonoBehaviour
 {
     // -------------------------------------------------------------------------
-    // Approximate world-space centers for each of the 20 squares (clockwise).
-    // Derived from the 2550×3300 board image at PPU=330 (world size ≈ 7.73×10).
+    // Approximate world-space centers for each of the 22 squares (clockwise).
+    // Board world size ≈ 7.73 wide × 10.0 tall, centered at (0,0).
+    // Top edge ≈ +5.0, bottom ≈ -5.0, left ≈ -3.87, right ≈ +3.87.
     // -------------------------------------------------------------------------
-    private static readonly Vector3[] SquareCenters = new Vector3[20]
+    private static readonly Vector3[] SquareCenters = new Vector3[22]
     {
-        // ── Top row: left → right ──────────────────────────────────────────
-        new Vector3(-3.02f,  4.20f, 0f),  // 0  Station:      Broadway / 7 Avenue Local (1)
-        new Vector3(-1.81f,  4.20f, 0f),  // 1  EarlyTrain:   96th Street
-        new Vector3(-0.61f,  4.20f, 0f),  // 2  EarlyTrain:   Early Train – Move 1 Space Ahead
-        new Vector3( 0.60f,  4.20f, 0f),  // 3  LateTrain:    Late Train – Lose a Turn
-        new Vector3( 1.81f,  4.20f, 0f),  // 4  ExpressTrain: 6 Avenue Express (F)
-        new Vector3( 3.01f,  4.20f, 0f),  // 5  Station:      6 Avenue Local / 47-50th Streets (D)
+        // ── Top row: left → right (indices 0–5) ────────────────────────
+        new Vector3(-3.22f,  4.30f, 0f),  // 0  Station:       Broadway / 7 Ave Local (1) — 96th St
+        new Vector3(-1.93f,  4.30f, 0f),  // 1  EarlyTrain:    Early Train — Move 1 Space Ahead
+        new Vector3(-0.64f,  4.30f, 0f),  // 2  NoOp:          Empty
+        new Vector3( 0.64f,  4.30f, 0f),  // 3  LateTrain:     Late Train — Lose a Turn
+        new Vector3( 1.93f,  4.30f, 0f),  // 4  ExpressTrain:  6 Avenue Express (F)
+        new Vector3( 3.22f,  4.30f, 0f),  // 5  Station:       6 Avenue Local / 47-50th Streets (F)
 
-        // ── Right column: top → bottom ─────────────────────────────────────
-        new Vector3( 3.02f,  2.52f, 0f),  // 6  SickPassenger: Sick Passenger – Go Back 1 Space
-        new Vector3( 3.02f,  0.84f, 0f),  // 7  EarlyTrain:    Early Train – Move 1 Space Ahead
-        new Vector3( 3.02f, -0.84f, 0f),  // 8  LateTrain:     Late Train – Lose a Turn
-        new Vector3( 3.02f, -2.52f, 0f),  // 9  ExpressTrain:  8 Avenue Express (A)
-        new Vector3( 3.01f, -4.20f, 0f),  // 10 Station:       Times Square / Eighth Avenue Local (C)
+        // ── Right column: top → bottom (indices 6–10) ──────────────────
+        new Vector3( 3.22f,  2.80f, 0f),  // 6  SickPassenger: Sick Passenger — Go Back 1 Space
+        new Vector3( 3.22f,  1.40f, 0f),  // 7  NoOp:          Empty
+        new Vector3( 3.22f,  0.00f, 0f),  // 8  EarlyTrain:    Early Train — Move 1 Space Ahead
+        new Vector3( 3.22f, -1.40f, 0f),  // 9  LateTrain:     Late Train — Lose a Turn
+        new Vector3( 3.22f, -2.80f, 0f),  // 10 ExpressTrain:  8 Avenue Express (A)
 
-        // ── Bottom row: right → left ───────────────────────────────────────
-        new Vector3( 1.50f, -4.20f, 0f),  // 11 EarlyTrain:   Early Train – Move 1 Space Ahead
-        new Vector3(-0.01f, -4.20f, 0f),  // 12 LateTrain:     Late Train – Lose a Turn
-        new Vector3(-1.52f, -4.20f, 0f),  // 13 ExpressTrain:  Broadway Express (Q)
-        new Vector3(-3.02f, -4.20f, 0f),  // 14 Station:       Astoria Blvd / Broadway Local (N)
+        // ── Bottom row: right → left (indices 11–16) ───────────────────
+        new Vector3( 3.22f, -4.30f, 0f),  // 11 Station:       Times Square / Eighth Avenue Local (C)
+        new Vector3( 1.93f, -4.30f, 0f),  // 12 EarlyTrain:    Early Train — Move 1 Space Ahead
+        new Vector3( 0.64f, -4.30f, 0f),  // 13 NoOp:          Empty
+        new Vector3(-0.64f, -4.30f, 0f),  // 14 LateTrain:     Late Train — Lose a Turn
+        new Vector3(-1.93f, -4.30f, 0f),  // 15 ExpressTrain:  Broadway Express (Q)
+        new Vector3(-3.22f, -4.30f, 0f),  // 16 Station:       Astoria Blvd / Broadway Local (N)
 
-        // ── Left column: bottom → top ──────────────────────────────────────
-        new Vector3(-3.02f, -2.80f, 0f),  // 15 SickPassenger: Sick Passenger – Go Back 1 Space
-        new Vector3(-3.02f, -1.40f, 0f),  // 16 EarlyTrain:    Early Train – Move 1 Space Ahead
-        new Vector3(-3.02f,  0.00f, 0f),  // 17 LateTrain:     Late Train – Lose a Turn
-        new Vector3(-3.02f,  1.40f, 0f),  // 18 ExpressTrain:  Seventh Avenue Express (2)
-        new Vector3(-3.02f,  2.80f, 0f),  // 19 SickPassenger: Sick Passenger – Go Back 1 Space
+        // ── Left column: bottom → top (indices 17–21) ──────────────────
+        new Vector3(-3.22f, -2.80f, 0f),  // 17 SickPassenger: Sick Passenger — Go Back 1 Space
+        new Vector3(-3.22f, -1.40f, 0f),  // 18 NoOp:          Empty
+        new Vector3(-3.22f,  0.00f, 0f),  // 19 EarlyTrain:    Early Train — Move 1 Space Ahead
+        new Vector3(-3.22f,  1.40f, 0f),  // 20 LateTrain:     Late Train — Lose a Turn
+        new Vector3(-3.22f,  2.80f, 0f),  // 21 ExpressTrain:  Seventh Avenue Express (2)
     };
 
-    // Collider half-sizes per square role (width, height in world units)
-    private static readonly Vector2 TopBottomSize    = new Vector2(1.10f, 1.35f); // top/bottom row
-    private static readonly Vector2 LeftRightSize    = new Vector2(1.15f, 1.55f); // left/right column
-    private static readonly Vector2 CornerSize       = new Vector2(1.15f, 1.35f); // corner Station squares
+    // Collider sizes (width, height in world units)
+    private static readonly Vector2 TopBottomSize = new Vector2(1.15f, 1.35f); // top/bottom row
+    private static readonly Vector2 LeftRightSize = new Vector2(1.20f, 1.50f); // left/right column
+    private static readonly Vector2 CornerSize    = new Vector2(1.20f, 1.35f); // corner Station squares
 
-    // Station indices (corners)
-    private static readonly int[] StationIndices = { 0, 5, 10, 14 };
+    // Station indices (corners): 0, 5, 11, 16
+    private static readonly int[] StationIndices = { 0, 5, 11, 16 };
 
     void Awake()
     {
@@ -93,13 +98,13 @@ public class BoardSetup : MonoBehaviour
         foreach (int si in StationIndices)
             if (index == si) return CornerSize;
 
-        // Left column (15–19)
-        if (index >= 15 && index <= 19) return LeftRightSize;
+        // Right column (6–10)
+        if (index >= 6 && index <= 10) return LeftRightSize;
 
-        // Right column (6–9)
-        if (index >= 6 && index <= 9) return LeftRightSize;
+        // Left column (17–21)
+        if (index >= 17 && index <= 21) return LeftRightSize;
 
-        // Top and bottom rows (1–4, 11–13)
+        // Top and bottom rows (1–4, 12–15)
         return TopBottomSize;
     }
 }

@@ -6,7 +6,8 @@ public enum SquareType
     ExpressTrain,
     EarlyTrain,
     LateTrain,
-    SickPassenger
+    SickPassenger,
+    NoOp
 }
 
 public enum SquarePolarity
