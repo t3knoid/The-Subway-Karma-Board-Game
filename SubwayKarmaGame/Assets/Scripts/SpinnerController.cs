@@ -55,11 +55,18 @@ public class SpinnerController : MonoBehaviour
     public AudioClip spinStartClip;
     public AudioClip spinStopClip;
 
+    // Spinner is shown at this fraction of camera height (fits inside board centre).
+    private const float ViewHeightFraction = 0.70f;
+
     // ── Lifecycle ──────────────────────────────────────────────────────────
     void Awake()
     {
         _audio = GetComponent<AudioSource>();
         if (_audio == null) _audio = gameObject.AddComponent<AudioSource>();
+    }
+
+    void Start()
+    {
         BuildSpinner();
     }
 
@@ -78,6 +85,16 @@ public class SpinnerController : MonoBehaviour
         float h      = tex.height;
         float arrowH = h * (1f - WheelFraction);   // height of pointer portion (px)
         float wheelH = h * WheelFraction;           // height of wheel portion (px)
+
+        // Scale the whole spinner so it fills ViewHeightFraction of the camera height.
+        Camera cam     = Camera.main;
+        float camH     = cam != null ? cam.orthographicSize * 2f : 10f;
+        float scale    = (camH * ViewHeightFraction) / (h / PPU);
+        transform.localScale = new Vector3(scale, scale, 1f);
+        // Centre on camera.
+        transform.position = cam != null
+            ? new Vector3(cam.transform.position.x, cam.transform.position.y, 0f)
+            : Vector3.zero;
 
         // ── Wheel child — ROTATES ──────────────────────────────────────────
         // Sprite Rect: top WheelFraction of image.
