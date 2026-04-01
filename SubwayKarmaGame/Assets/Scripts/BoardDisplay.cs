@@ -1,9 +1,9 @@
 using UnityEngine;
 
 /// <summary>
-/// Loads the board sprite from Resources at runtime and scales it so that it
-/// fits entirely within the camera's orthographic view while preserving its
-/// aspect ratio.
+/// Loads the board texture from Resources at runtime, creates a Sprite from it,
+/// and scales the GameObject so the board fills the camera viewport while
+/// preserving its aspect ratio.
 /// </summary>
 [RequireComponent(typeof(SpriteRenderer))]
 public class BoardDisplay : MonoBehaviour
@@ -14,13 +14,19 @@ public class BoardDisplay : MonoBehaviour
     {
         _renderer = GetComponent<SpriteRenderer>();
 
-        Sprite boardSprite = Resources.Load<Sprite>("board");
-        if (boardSprite == null)
+        Texture2D tex = Resources.Load<Texture2D>("board");
+        if (tex == null)
         {
-            Debug.LogError("[BoardDisplay] Could not load 'board' sprite from Resources. " +
-                           "Ensure Assets/Resources/board.jpg exists and is imported as Sprite.");
+            Debug.LogError("[BoardDisplay] Could not load 'board' texture from Resources. " +
+                           "Ensure Assets/Resources/board.jpg exists.");
             return;
         }
+
+        Sprite boardSprite = Sprite.Create(
+            tex,
+            new Rect(0, 0, tex.width, tex.height),
+            new Vector2(0.5f, 0.5f),
+            100f);
 
         _renderer.sprite = boardSprite;
         FitToCamera();
