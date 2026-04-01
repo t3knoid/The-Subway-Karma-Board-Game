@@ -29,10 +29,10 @@ public class BoardDisplay : MonoBehaviour
             100f);
 
         _renderer.sprite = boardSprite;
-        FitToCamera();
+        // Do NOT call FitToCamera here — cam.aspect is unreliable at Awake() time.
+        // Start() is guaranteed to run after the first frame, when the camera is ready.
     }
 
-    // Also called in Start() to correct any stale camera state from Awake() timing.
     void Start() => FitToCamera();
 
     private void FitToCamera()
@@ -43,20 +43,17 @@ public class BoardDisplay : MonoBehaviour
         Vector2 spriteSize = _renderer.sprite.bounds.size;
         if (spriteSize.x <= 0 || spriteSize.y <= 0) return;
 
-        // Derive the actual visible world bounds from the camera.
-        // Using ScreenToWorldPoint is robust against any projection matrix mode
-        // (physical camera gate-fit, etc.) that may adjust the effective frustum.
-        Vector3 bl = cam.ScreenToWorldPoint(new Vector3(0,              0,               1f));
-        Vector3 tr = cam.ScreenToWorldPoint(new Vector3(cam.pixelWidth, cam.pixelHeight, 1f));
-        float visibleWidth  = tr.x - bl.x;
-        float visibleHeight = tr.y - bl.y;
+        // The scene camera uses Automatic orthographic mode (no physical gate-fit).
+        // cam.orthographicSize and cam.aspect are the exact canonical values.
+        float camHeight = cam.orthographicSize * 2f;               // 10 world units
+        float camWidth  = camHeight * cam.aspect;                  //  16 world units @ 960×600
 
-        // Fit-inside: for a portrait board in a landscape camera, scaleY is always
-        // the limiting dimension (board aspect 0.85 < camera aspect 1.6).
-        float scale = Mathf.Min(visibleWidth / spriteSize.x, visibleHeight / spriteSize.y);
+        // Fit-inside: portrait board (aspect 0.85) in landscape camera (aspect 1.6).
+        // scaleY (0.353) < scaleX (0.663) so scaleY always wins — fills the height.
+        float scale = Mathf.Min(camWidth / spriteSize.x, camHeight / spriteSize.y);
 
         transform.localScale = new Vector3(scale, scale, 1f);
-        // Centre on the camera's actual world midpoint (handles any viewport offset).
-        transform.position   = new Vector3((bl.x + tr.x) * 0.5f, (bl.y + tr.y) * 0.5f, 0f);
+        transform.position   = new Vector3(cam.transform.position.x,
+                                           cam.transform.position.y, 0f);
     }
 }
