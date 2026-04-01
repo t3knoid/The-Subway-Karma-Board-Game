@@ -14,6 +14,8 @@ public static class GameBootstrap
         EnsureBoard();
         EnsureBoardSetup();
         EnsureSpinner();
+        EnsureKarmaDeck();
+        EnsurePlayerState();
     }
 
     private static void EnsureBoardManager()
@@ -53,5 +55,23 @@ public static class GameBootstrap
         var go = new GameObject("Spinner");
         go.AddComponent<SpinnerController>();
         Debug.Log("[GameBootstrap] Created Spinner");
+    }
+
+    private static void EnsureKarmaDeck()
+    {
+        if (KarmaDeck.Instance != null) return;
+
+        var go = new GameObject("KarmaDeck");
+        go.AddComponent<KarmaDeck>();
+        Debug.Log("[GameBootstrap] Created KarmaDeck");
+    }
+
+    private static void EnsurePlayerState()
+    {
+        if (PlayerState.Instance != null) return;
+
+        var go = new GameObject("PlayerState");
+        go.AddComponent<PlayerState>();
+        Debug.Log("[GameBootstrap] Created PlayerState");
     }
 }
