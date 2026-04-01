@@ -64,8 +64,8 @@ public class GameSetupScreen : MonoBehaviour
             new Color(0.18f, 0.45f, 0.82f),
             OnSoloPlay);
 
-        MakeButton("vs Computer  [Random]",
-            "You vs. an RNG opponent.",
+        MakeButton("vs Computer",
+            "You vs. the computer.",
             new Vector2(0f, -70f),
             new Color(0.55f, 0.20f, 0.75f),
             OnVsComputer);
