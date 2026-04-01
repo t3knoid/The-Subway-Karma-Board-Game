@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.EventSystems;
 
 /// <summary>
 /// Bootstraps all game objects at startup so nothing depends on hand-crafted
@@ -20,6 +21,7 @@ public static class GameBootstrap
         EnsureScoreTracker();
         EnsureResultsScreen();
         EnsureGameSetupScreen();
+        EnsureEventSystem();
     }
 
     private static void EnsureBoardManager()
@@ -120,5 +122,16 @@ public static class GameBootstrap
         go.AddComponent<GameSetupScreen>();
         Object.DontDestroyOnLoad(go);
         Debug.Log("[GameBootstrap] Created GameSetupScreen");
+    }
+
+    private static void EnsureEventSystem()
+    {
+        if (Object.FindAnyObjectByType<EventSystem>() != null) return;
+
+        var go = new GameObject("EventSystem");
+        go.AddComponent<EventSystem>();
+        go.AddComponent<StandaloneInputModule>();
+        Object.DontDestroyOnLoad(go);
+        Debug.Log("[GameBootstrap] Created EventSystem");
     }
 }
