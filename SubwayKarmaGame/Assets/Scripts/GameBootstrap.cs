@@ -13,6 +13,7 @@ public static class GameBootstrap
         EnsureBoardManager();
         EnsureBoard();
         EnsureBoardSetup();
+        EnsureSpinner();
     }
 
     private static void EnsureBoardManager()
@@ -43,5 +44,14 @@ public static class GameBootstrap
         var go = new GameObject("BoardSetup");
         go.AddComponent<BoardSetup>();
         Debug.Log("[GameBootstrap] Created BoardSetup");
+    }
+
+    private static void EnsureSpinner()
+    {
+        if (Object.FindAnyObjectByType<SpinnerController>() != null) return;
+
+        var go = new GameObject("Spinner");
+        go.AddComponent<SpinnerController>();
+        Debug.Log("[GameBootstrap] Created Spinner");
     }
 }
