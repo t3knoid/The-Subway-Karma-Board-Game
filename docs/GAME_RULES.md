@@ -2,15 +2,15 @@
 
 ## Overview
 
-A single-player (solitaire) board game set on the New York City subway system. The player moves a token clockwise around a 20-square perimeter loop by spinning a 6-segment wheel. Karma cards are collected at station squares. The game ends when the last karma card is drawn; the player's final karma score is the sum of all card point values.
+A single-player (solitaire) board game set on the New York City subway system. The player moves a token clockwise around a 22-square perimeter loop by spinning a 6-segment wheel. Karma cards are collected at station squares. The game ends when the last karma card is drawn; the player's final karma score is the sum of all card point values.
 
 ---
 
 ## Components
 
 | Component | Quantity | Notes |
-|---|---|---|
-| Game board | 1 | 20-square perimeter loop, NYC subway map in center |
+| --- | --- | --- |
+| Game board | 1 | 22-square perimeter loop, NYC subway map in center showing the Karma card draw pile |
 | Karma cards | 26 | 10 positive, 10 negative, 6 special (no blank cards in deck) |
 | Spinner | 1 | 6-segment wheel with fixed pointer |
 | Player token | 1 | Starts on any Station square |
@@ -19,13 +19,13 @@ A single-player (solitaire) board game set on the New York City subway system. T
 
 ## Board
 
-The board is a **closed perimeter loop of 20 squares played clockwise**. The center panel (titled "The Subway KARMA Game") is decorative and represents the karma card draw pile.
+The board is a **closed perimeter loop of 22 squares played clockwise**. The center panel (titled "The Subway KARMA Game") is decorative and represents the karma card draw pile. The corner spaces represent subway stations. Each station is identified with the station location and line identifier. The rest of the square spaces represent the connections between the subway stations. Landing instructions on a square triggers an action the player must take.
 
 ### Square Types
 
 | Type | Background | Font Color | Effect |
-|---|---|---|---|
-| Station | Black (subway-styled) | White | Draw a karma card when landed on or passed |
+| --- | --- | --- | --- |
+| Station | Black (subway-styled) shows the line identifier at the bottom of the square, the station location is just above the identifier with a white background | White for the line identifier and black for the station name | Draw a karma card when landed on or passed |
 | Express Train | Black | White | Spin again; move that many additional spaces forward |
 | Early Train | Green | White | Move 1 space ahead |
 | Late Train | Green | Red | Lose a turn |
@@ -36,29 +36,31 @@ The board is a **closed perimeter loop of 20 squares played clockwise**. The cen
 ### Complete Board Layout (clockwise, index 0–19)
 
 | Index | Square Name | Type |
-|---|---|---|
-| 0 | Broadway / 7 Avenue Local (1) | Station ★ |
-| 1 | 96th Street | Early Train |
-| 2 | Early Train — Move 1 Space Ahead | Early Train |
+| --- | --- | --- |
+| 0 | Broadway / 7 Avenue Local (1) 96th Street | Station ★ |
+| 1 | Early Train - Move 1 Space Ahead | Early Train |
+| 2 | Empty | NoOp |
 | 3 | Late Train — Lose a Turn | Late Train |
 | 4 | 6 Avenue Express (F) | Express Train |
-| 5 | 6 Avenue Local / 47-50th Streets (D) | Station ★ |
+| 5 | 6 Avenue Local / 47-50th Streets (F) | Station ★ |
 | 6 | Sick Passenger — Go Back 1 Space | Sick Passenger |
-| 7 | Early Train — Move 1 Space Ahead | Early Train |
-| 8 | Late Train — Lose a Turn | Late Train |
-| 9 | 8 Avenue Express (A) | Express Train |
-| 10 | Times Square / Eighth Avenue Local (C) | Station ★ |
-| 11 | Early Train — Move 1 Space Ahead | Early Train |
-| 12 | Late Train — Lose a Turn | Late Train |
-| 13 | Broadway Express (Q) | Express Train |
-| 14 | Astoria Blvd / Broadway Local (N) | Station ★ |
-| 15 | Sick Passenger — Go Back 1 Space | Sick Passenger |
-| 16 | Early Train — Move 1 Space Ahead | Early Train |
-| 17 | Late Train — Lose a Turn | Late Train |
-| 18 | Seventh Avenue Express (2) | Express Train |
-| 19 | Sick Passenger — Go Back 1 Space | Sick Passenger |
+| 7 | Empty | NoOp |
+| 8 | Early Train — Move 1 Space Ahead | Early Train |
+| 9 | Late Train — Lose a Turn | Late Train |
+| 10 | 8 Avenue Express (A) | Express Train |
+| 11 | Times Square / Eighth Avenue Local (C) | Station ★ |
+| 12 | Early Train — Move 1 Space Ahead | Early Train |
+| 13 | Empty | NoOp |
+| 14 | Late Train — Lose a Turn | Late Train |
+| 15 | Broadway Express (Q) | Express Train |
+| 16 | Astoria Blvd / Broadway Local (N) | Station ★ |
+| 17 | Sick Passenger — Go Back 1 Space | Sick Passenger |
+| 18 | Empty | NoOp |
+| 19 | Early Train — Move 1 Space Ahead | Early Train |
+| 20 | Late Train — Lose a Turn | Late Train |
+| 21 | Seventh Avenue Express (2) | Express Train |
 
-★ = Station (corner square). Stations are at indices **0, 5, 10, 14**.
+★ = Station (corner square). Stations are at indices **0, 5, 11, 16**.
 
 ---
 
@@ -72,6 +74,7 @@ The physical spinner is a circle divided into **6 equal segments**, each labelle
 A **fixed arrow pointer** (pointing right, below the wheel) serves as the indicator. The wheel spins; the pointer does not move. Each segment has equal probability (1-in-6).
 
 The spinner is used:
+
 1. At the start of every turn to determine how many spaces to move.
 2. As a **re-spin** when landing on an Express Train square — the result is added as extra spaces forward on top of the original move.
 
@@ -88,6 +91,8 @@ The spinner is used:
    - **Early Train:** move 1 space ahead immediately.
    - **Late Train:** lose next turn.
    - **Sick Passenger:** move 1 space back immediately.
+   - **Blank** considered a NoOp.
+   - The resulting square the player lands on when **moving back** is considered a NoOp.
 5. **End turn** — pass to the next player (or in solitaire, begin the next turn).
 
 ---
@@ -101,7 +106,7 @@ The deck is **shuffled using Fisher-Yates** at the start of every game and again
 ### Positive Cards (+points)
 
 | Card Title | Points |
-|---|---|
+| --- | --- |
 | Finds Metrocard | +5 |
 | Gets a Seat | +1 |
 | Holds Door for Someone | +2 |
@@ -116,7 +121,7 @@ The deck is **shuffled using Fisher-Yates** at the start of every game and again
 ### Negative Cards (−points)
 
 | Card Title | Points |
-|---|---|
+| --- | --- |
 | Loses Metrocard | −5 |
 | Overcrowded Train | −1 |
 | Fell Asleep, Got Robbed, and Woke Up Naked | −9 |
@@ -131,14 +136,14 @@ The deck is **shuffled using Fisher-Yates** at the start of every game and again
 ### Special Cards (0 points)
 
 | Card Title | Count | Solitaire Behavior |
-|---|---|---|
+| --- | ---| --- |
 | Instant Karma — Take a random card from every other player | 3 | No-op (no other players); display card, end turn |
 | Says Hello to Other Riders — Sorry, no points for being human | 3 | No-op (0 pts); display card, end turn |
 
 ### Deck Composition Summary
 
 | Category | Count | Point Range |
-|---|---|---|
+| --- | --- | --- |
 | Positive | 10 | +1 to +9 |
 | Negative | 10 | −1 to −9 |
 | Special | 6 | 0 |
@@ -157,8 +162,8 @@ There is no pass/fail threshold in solitaire — the score is the result. In a m
 ## Quick Reference
 
 | Rule | Value |
-|---|---|
-| Total squares | 20 |
+| --- | --- |
+| Total squares | 22 |
 | Direction of play | Clockwise |
 | Starting position | Any Station square (youngest player goes first in multiplayer) |
 | Spinner range | 1–6 (equal probability) |
