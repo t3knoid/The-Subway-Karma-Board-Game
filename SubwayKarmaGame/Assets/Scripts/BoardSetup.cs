@@ -28,34 +28,34 @@ public class BoardSetup : MonoBehaviour
     private static readonly Vector3[] SquareCenters = new Vector3[22]
     {
         // ── Top row: left → right (indices 0–5) ─ local_y = (1417.5−206)/100 = +12.12
-        new Vector3(-10.06f,  12.12f, 0f),  // 0  Station:       Broadway / 7 Ave Local (1) — 96th St
+        new Vector3(-10.06f,  12.12f, 0f),  // 0  Station:       Upper West Side — Riverside Local (8)
         new Vector3( -6.08f,  12.12f, 0f),  // 1  EarlyTrain:    Early Train — Move 1 Space Ahead
         new Vector3( -2.02f,  12.12f, 0f),  // 2  NoOp:          Empty
         new Vector3(  2.03f,  12.12f, 0f),  // 3  LateTrain:     Late Train — Lose a Turn
-        new Vector3(  6.09f,  12.12f, 0f),  // 4  ExpressTrain:  6 Avenue Express (F)
-        new Vector3( 10.07f,  12.12f, 0f),  // 5  Station:       6 Avenue Local / 47-50th Streets (F)
+        new Vector3(  6.09f,  12.12f, 0f),  // 4  ExpressTrain:  Americas Express (K)
+        new Vector3( 10.07f,  12.12f, 0f),  // 5  Station:       Midtown — Americas Local (P)
 
         // ── Right column: top → bottom (indices 6–10) ─ local_x = (2212.5−1205.5)/100 = +10.07
         new Vector3( 10.07f,   8.12f, 0f),  // 6  SickPassenger: Sick Passenger — Go Back 1 Space
         new Vector3( 10.07f,   4.06f, 0f),  // 7  NoOp:          Empty
         new Vector3( 10.07f,   0.00f, 0f),  // 8  EarlyTrain:    Early Train — Move 1 Space Ahead
         new Vector3( 10.07f,  -4.06f, 0f),  // 9  LateTrain:     Late Train — Lose a Turn
-        new Vector3( 10.07f,  -8.12f, 0f),  // 10 ExpressTrain:  8 Avenue Express (A)
+        new Vector3( 10.07f,  -8.12f, 0f),  // 10 ExpressTrain:  Hudson Express (U)
 
         // ── Bottom row: right → left (indices 11–16) ─ local_y = (1417.5−2629)/100 = −12.12
-        new Vector3( 10.07f, -12.12f, 0f),  // 11 Station:       Times Square / Eighth Avenue Local (C)
+        new Vector3( 10.07f, -12.12f, 0f),  // 11 Station:       Hell's Kitchen — Hudson Local (Y)
         new Vector3(  6.09f, -12.12f, 0f),  // 12 EarlyTrain:    Early Train — Move 1 Space Ahead
         new Vector3(  2.03f, -12.12f, 0f),  // 13 NoOp:          Empty
         new Vector3( -2.02f, -12.12f, 0f),  // 14 LateTrain:     Late Train — Lose a Turn
-        new Vector3( -6.08f, -12.12f, 0f),  // 15 ExpressTrain:  Broadway Express (Q)
-        new Vector3(-10.06f, -12.12f, 0f),  // 16 Station:       Astoria Blvd / Broadway Local (N)
+        new Vector3( -6.08f, -12.12f, 0f),  // 15 ExpressTrain:  Queensboro Express (X)
+        new Vector3(-10.06f, -12.12f, 0f),  // 16 Station:       Astoria — Queensboro Local (H)
 
         // ── Left column: bottom → top (indices 17–21) ─ local_x = (199.5−1205.5)/100 = −10.06
         new Vector3(-10.06f,  -8.12f, 0f),  // 17 SickPassenger: Sick Passenger — Go Back 1 Space
         new Vector3(-10.06f,  -4.06f, 0f),  // 18 NoOp:          Empty
         new Vector3(-10.06f,   0.00f, 0f),  // 19 EarlyTrain:    Early Train — Move 1 Space Ahead
         new Vector3(-10.06f,   4.06f, 0f),  // 20 LateTrain:     Late Train — Lose a Turn
-        new Vector3(-10.06f,   8.12f, 0f),  // 21 ExpressTrain:  Seventh Avenue Express (2)
+        new Vector3(-10.06f,   8.12f, 0f),  // 21 ExpressTrain:  Riverside Express (9)
     };
 
     // Collider sizes in Board LOCAL SPACE (pixel measurements ÷ PPU).
