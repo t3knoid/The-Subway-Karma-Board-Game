@@ -22,6 +22,12 @@ using UnityEngine;
 ///     Unity pivot fraction: (85/948, 222/452) = (0.0897, 0.4912)
 ///     Pivot near left edge; arrow extends rightward — matches Unity 0-deg = right.
 ///
+/// Player gestures:
+///   Tap (release)       → spin
+///   Drag                → "lift" it (grows, casts a shadow, floats above tokens) and move it
+///                         anywhere on screen; dropping it saves the spot in PlayerPrefs
+///   Press and hold ~1 s → return it to automatic placement
+///
 /// Usage:
 ///   spinner.Spin();                      // animated tap spin
 ///   int val = spinner.SimulateSpin();    // instant result, no animation
@@ -68,13 +74,56 @@ public class SpinnerController : MonoBehaviour
     private const float ArrowPivotX = 85f  / 948f;   // 0.0897
     private const float ArrowPivotY = 222f / 452f;   // 0.4912
 
-    // Spinner wheel fills this fraction of camera height.
-    private const float ViewHeightFraction = 0.70f;
+    // -- Layout -------------------------------------------------------------
+    // Preferred: in the empty strip LEFT of the board (the score panel is top-right).
+    private const float SideMarginFill     = 0.85f;  // wheel diameter as a fraction of the strip width
+    private const float SideMaxHeightFrac  = 0.45f;  // never taller than this fraction of the screen
+    private const float SideMinHeightFrac  = 0.22f;  // smaller than this → use the board centre instead
+
+    // Fallback (portrait / 4:3): inside the board's centre panel, clear of the squares.
+    // Inner panel size from BoardSetup measurements: 1 − 2×391/2411 and 1 − 2×392/2835.
+    private const float BoardInnerWidthFrac  = 0.676f;
+    private const float BoardInnerHeightFrac = 0.723f;
+    private const float CentreFill           = 0.60f;
 
     // -- Private fields -----------------------------------------------------
+    private float          _wheelWorldHeight;   // wheel height in world units at scale 1
+    private SpriteRenderer _boardRenderer;
+    private float          _lastAspect;
+    private Vector3        _lastBoardSize;
+
+    // -- Player-positioned spinner -----------------------------------------
+    // Drag to move; position is saved as a viewport fraction so it survives
+    // resizes/rotation. Press-and-hold without moving restores auto placement.
+    private const string PrefX              = "spinner.viewportX";
+    private const string PrefY              = "spinner.viewportY";
+    private const float  DragThresholdInch  = 0.06f;  // movement before a press counts as a drag
+    private const float  LongPressSeconds   = 1.0f;
+
+    private bool    _hasCustomPosition;
+    private Vector2 _customViewport;
+
+    private bool    _pointerDown;
+    private bool    _dragging;
+    private bool    _longPressHandled;
+    private float   _pressTime;
+    private Vector3 _pressScreenPos;
+    private Vector3 _grabOffset;
+
     private bool        _isSpinning;
     private float       _totalCwDeg;    // accumulated CW rotation of the arrow
     private Transform   _arrowTransform;
+
+    // -- "Lifted" look while dragging --------------------------------------
+    private const float LiftScale        = 1.15f;            // grows 15% when picked up
+    private const float LiftSpeed        = 12f;              // ease rate (higher = snappier)
+    private const float LiftedZ          = -1f;              // in front of the tokens (z = -0.5)
+    private const float ShadowAlpha      = 0.35f;
+    private static readonly Vector2 ShadowOffset = new Vector2(0.8f, -1.2f);  // wheel-local units (~4–6% of the wheel) at full lift
+
+    private float          _baseScale = 1f;   // size chosen by Layout()
+    private float          _lift      = 1f;   // current multiplier, eases toward the target
+    private SpriteRenderer _shadow;
     private AudioSource _audio;
 
     // Assign in Inspector or leave null for silent spins.
@@ -88,11 +137,28 @@ public class SpinnerController : MonoBehaviour
         Instance = this;
         _audio = GetComponent<AudioSource>();
         if (_audio == null) _audio = gameObject.AddComponent<AudioSource>();
+        LoadCustomPosition();
     }
 
     void Start()
     {
         BuildSpinner();
+        Layout();
+    }
+
+    void OnEnable()
+    {
+        // The spinner is hidden between human turns; re-check placement when shown.
+        if (_wheelWorldHeight > 0f) Layout();
+    }
+
+    void LateUpdate()
+    {
+        // Re-layout on window resize / device rotation, or once the board has been fitted.
+        Camera cam = Camera.main;
+        if (cam == null || _wheelWorldHeight <= 0f || _dragging) return;
+        if (!Mathf.Approximately(cam.aspect, _lastAspect) || BoardBounds(cam).size != _lastBoardSize)
+            Layout();
     }
 
     // -- Construction -------------------------------------------------------
@@ -117,14 +183,8 @@ public class SpinnerController : MonoBehaviour
         float wW = wheelTex.width;
         float wH = wheelTex.height;
 
-        // Scale parent so the wheel fills ViewHeightFraction of camera height.
-        Camera cam  = Camera.main;
-        float camH  = cam != null ? cam.orthographicSize * 2f : 10f;
-        float scale = (camH * ViewHeightFraction) / (wH / PPU);
-        transform.localScale = new Vector3(scale, scale, 1f);
-        transform.position   = cam != null
-            ? new Vector3(cam.transform.position.x, cam.transform.position.y, 0f)
-            : Vector3.zero;
+        // Size and position are set by Layout(), which also runs on resize/rotation.
+        _wheelWorldHeight = wH / PPU;
 
         // -- Wheel child: STATIC --------------------------------------------
         var wheelGO = new GameObject("SpinnerWheel");
@@ -138,6 +198,14 @@ public class SpinnerController : MonoBehaviour
             new Vector2(WheelPivotX, WheelPivotY),
             PPU);
         wheelSR.sortingOrder = 10;
+
+        // -- Drop shadow: hidden until the spinner is picked up -------------
+        var shadowGO = new GameObject("SpinnerShadow");
+        shadowGO.transform.SetParent(transform, false);
+        _shadow = shadowGO.AddComponent<SpriteRenderer>();
+        _shadow.sprite       = wheelSR.sprite;
+        _shadow.color        = new Color(0f, 0f, 0f, 0f);
+        _shadow.sortingOrder = 9;   // just under the wheel
 
         // -- Circle collider on the PARENT so OnMouseDown fires here --------
         var col = gameObject.AddComponent<CircleCollider2D>();
@@ -162,16 +230,227 @@ public class SpinnerController : MonoBehaviour
         arrowSR.sortingOrder = 11;
     }
 
+    // -- Layout -------------------------------------------------------------
+
+    /// <summary>
+    /// Places the spinner so the board's squares stay visible:
+    ///   • Landscape: centred in the empty strip left of the board.
+    ///   • Too narrow for that (portrait, 4:3): shrunk into the board's centre panel.
+    /// </summary>
+    private void Layout()
+    {
+        Camera cam = Camera.main;
+        if (cam == null || _wheelWorldHeight <= 0f) return;
+
+        float camH = cam.orthographicSize * 2f;
+        float camW = camH * cam.aspect;
+        Vector3 camPos = cam.transform.position;
+        Bounds board = BoardBounds(cam);
+
+        float screenLeft = camPos.x - camW * 0.5f;
+        float sideStrip  = board.min.x - screenLeft;
+        float sideSize   = Mathf.Min(sideStrip * SideMarginFill, camH * SideMaxHeightFrac);
+
+        float   diameter;
+        Vector3 centre;
+        if (sideSize >= camH * SideMinHeightFrac)
+        {
+            diameter = sideSize;
+            centre   = new Vector3(screenLeft + sideStrip * 0.5f, camPos.y, 0f);
+        }
+        else
+        {
+            diameter = Mathf.Min(board.size.x * BoardInnerWidthFrac,
+                                 board.size.y * BoardInnerHeightFrac) * CentreFill;
+            centre   = new Vector3(board.center.x, board.center.y, 0f);
+        }
+
+        // A spot the player dragged it to wins over the automatic position (size stays automatic).
+        if (_hasCustomPosition)
+        {
+            Vector3 p = cam.ViewportToWorldPoint(new Vector3(_customViewport.x, _customViewport.y, 0f));
+            centre = new Vector3(p.x, p.y, 0f);
+        }
+
+        float scale = diameter / _wheelWorldHeight;
+        _baseScale = scale;
+        ApplyLift();
+        transform.position = ClampToScreen(cam, centre);
+
+        _lastAspect    = cam.aspect;
+        _lastBoardSize = board.size;
+    }
+
+    /// <summary>World bounds of the board sprite, or an estimate if it isn't ready yet.</summary>
+    private Bounds BoardBounds(Camera cam)
+    {
+        if (_boardRenderer == null)
+        {
+            var display = FindAnyObjectByType<BoardDisplay>();
+            if (display != null) _boardRenderer = display.GetComponent<SpriteRenderer>();
+        }
+        if (_boardRenderer != null && _boardRenderer.sprite != null)
+            return _boardRenderer.bounds;
+
+        // Board image is 2411×2835 and fills the screen height.
+        float camH = cam.orthographicSize * 2f;
+        Vector3 c = cam.transform.position;
+        return new Bounds(new Vector3(c.x, c.y, 0f), new Vector3(camH * 2411f / 2835f, camH, 0f));
+    }
+
+    // -- Lift effect ----------------------------------------------------------
+
+    void Update()
+    {
+        float target = _dragging ? LiftScale : 1f;
+        if (Mathf.Approximately(_lift, target)) return;
+
+        _lift = Mathf.MoveTowards(_lift, target, LiftSpeed * (LiftScale - 1f) * Time.unscaledDeltaTime);
+        ApplyLift();
+    }
+
+    /// <summary>Applies size, shadow and depth for the current lift amount.</summary>
+    private void ApplyLift()
+    {
+        float s = _baseScale * _lift;
+        transform.localScale = new Vector3(s, s, 1f);
+
+        float t = Mathf.InverseLerp(1f, LiftScale, _lift);   // 0 = resting, 1 = fully lifted
+
+        Vector3 p = transform.position;
+        transform.position = new Vector3(p.x, p.y, Mathf.Lerp(0f, LiftedZ, t));
+
+        if (_shadow != null)
+        {
+            _shadow.transform.localPosition = new Vector3(ShadowOffset.x * t, ShadowOffset.y * t, 0.01f);
+            _shadow.color = new Color(0f, 0f, 0f, ShadowAlpha * t);
+        }
+    }
+
+    /// <summary>Keeps the whole wheel on screen.</summary>
+    private Vector3 ClampToScreen(Camera cam, Vector3 pos)
+    {
+        float radius = _wheelWorldHeight * _baseScale * _lift * 0.5f;
+        float halfH  = cam.orthographicSize;
+        float halfW  = halfH * cam.aspect;
+        Vector3 c    = cam.transform.position;
+
+        float x = halfW > radius ? Mathf.Clamp(pos.x, c.x - halfW + radius, c.x + halfW - radius) : c.x;
+        float y = halfH > radius ? Mathf.Clamp(pos.y, c.y - halfH + radius, c.y + halfH - radius) : c.y;
+        return new Vector3(x, y, transform.position.z);   // keep the lift depth
+    }
+
+    // -- Saved position -----------------------------------------------------
+
+    private void LoadCustomPosition()
+    {
+        _hasCustomPosition = PlayerPrefs.HasKey(PrefX) && PlayerPrefs.HasKey(PrefY);
+        if (_hasCustomPosition)
+            _customViewport = new Vector2(PlayerPrefs.GetFloat(PrefX), PlayerPrefs.GetFloat(PrefY));
+    }
+
+    private void SaveCustomPosition()
+    {
+        Camera cam = Camera.main;
+        if (cam == null) return;
+
+        Vector3 v = cam.WorldToViewportPoint(transform.position);
+        _customViewport    = new Vector2(Mathf.Clamp01(v.x), Mathf.Clamp01(v.y));
+        _hasCustomPosition = true;
+
+        PlayerPrefs.SetFloat(PrefX, _customViewport.x);
+        PlayerPrefs.SetFloat(PrefY, _customViewport.y);
+        PlayerPrefs.Save();
+        Debug.Log($"[SpinnerController] Moved by player to viewport {_customViewport}.");
+    }
+
+    /// <summary>Forgets the player's chosen spot and returns to automatic placement.</summary>
+    public void ResetPosition()
+    {
+        _hasCustomPosition = false;
+        PlayerPrefs.DeleteKey(PrefX);
+        PlayerPrefs.DeleteKey(PrefY);
+        PlayerPrefs.Save();
+        Layout();
+        Debug.Log("[SpinnerController] Position reset to automatic.");
+    }
+
     // -- Input --------------------------------------------------------------
+    // Tap = spin (on release) · Drag = move · Press and hold = reset position.
+
     void OnMouseDown()
     {
+        if (_isSpinning) return;   // no moving or re-spinning mid-spin
+
+        _pointerDown      = true;
+        _dragging         = false;
+        _longPressHandled = false;
+        _pressTime        = Time.unscaledTime;
+        _pressScreenPos   = Input.mousePosition;
+        _grabOffset       = transform.position - PointerWorld();
+    }
+
+    void OnMouseDrag()   // called every frame while the press is held
+    {
+        if (!_pointerDown || _longPressHandled) return;
+
+        if (!_dragging)
+        {
+            float dpi       = Screen.dpi > 0f ? Screen.dpi : 96f;
+            float threshold = Mathf.Max(8f, dpi * DragThresholdInch);
+
+            if ((Input.mousePosition - _pressScreenPos).magnitude < threshold)
+            {
+                if (Time.unscaledTime - _pressTime >= LongPressSeconds)
+                {
+                    _longPressHandled = true;
+                    ResetPosition();
+                }
+                return;
+            }
+            _dragging = true;
+        }
+
+        Camera cam = Camera.main;
+        if (cam != null)
+            transform.position = ClampToScreen(cam, PointerWorld() + _grabOffset);
+    }
+
+    void OnMouseUp()   // fires even if released off the spinner
+    {
+        if (!_pointerDown) return;
+        _pointerDown = false;
+
+        if (_dragging)
+        {
+            _dragging = false;
+            SaveCustomPosition();
+            return;
+        }
+        if (_longPressHandled) return;
+
         if (Interactable) Spin();
     }
 
-    // Hiding the spinner stops its coroutine; don't leave it stuck mid-spin.
+    private static Vector3 PointerWorld()
+    {
+        Camera cam = Camera.main;
+        if (cam == null) return Vector3.zero;
+        Vector3 p = cam.ScreenToWorldPoint(Input.mousePosition);
+        p.z = 0f;
+        return p;
+    }
+
+    // Hiding the spinner stops its coroutine; don't leave it stuck mid-spin or mid-drag.
     void OnDisable()
     {
-        _isSpinning = false;
+        _isSpinning  = false;
+        _pointerDown = false;
+        _dragging    = false;
+
+        // Put it down instantly so it doesn't reappear lifted.
+        _lift = 1f;
+        ApplyLift();
     }
 
     // -- Public API ---------------------------------------------------------

@@ -199,11 +199,14 @@ public class PlayerToken : MonoBehaviour
         var col = go.GetComponent<Collider>();
         if (col != null) UnityEngine.Object.Destroy(col);
 
+        // Copy the primitive's built-in default material instead of using
+        // Shader.Find("Standard"): Shader.Find returns null in player builds
+        // when no asset references the shader, so it only worked in the Editor.
         var mr  = go.GetComponent<MeshRenderer>();
-        var mat = new Material(Shader.Find("Standard"));
+        var mat = new Material(mr.sharedMaterial);
         mat.color = color;
-        mat.SetFloat("_Glossiness", 0.08f);
-        mat.SetFloat("_Metallic",   0.00f);
+        if (mat.HasProperty("_Glossiness")) mat.SetFloat("_Glossiness", 0.08f);
+        if (mat.HasProperty("_Metallic"))   mat.SetFloat("_Metallic",   0.00f);
         mr.material = mat;
     }
 
