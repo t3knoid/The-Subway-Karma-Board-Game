@@ -233,11 +233,15 @@ A non-zero exit code means the build failed. Check the log file. Signing secrets
 
 ## Known issues to fix before a mobile release
 
-Screen rotation is already handled. The game is landscape-only, and the board, tokens and spinner re-fit when a phone flips between the two landscape directions or a desktop window is resized.
+Already handled:
+
+- **Screen rotation:** the game is landscape-only, and the board, tokens and spinner re-fit when a phone flips between the two landscape directions or a desktop window is resized.
+- **Notches and rounded corners:** the score panel and the spinner (its automatic spot and its drag limits) stay inside `Screen.safeArea`, via `SafeAreaFitter`. Put any new HUD element under a `SafeAreaFitter.Create(canvas)` area rather than directly on the canvas.
+
+Still to do:
 
 | Issue | Why it matters | Fix |
 | --- | --- | --- |
-| **Notches and rounded corners** | The score panel sits in the top-right corner, where a camera cutout can cover it. | Lay out the UI inside `Screen.safeArea`. |
 | **Touch input** | Spinning and dragging use mouse events, which Unity also generates from single touches. Expected to work, but untested on a device. | Test tap, drag and press-and-hold-to-reset on a real phone. |
 | **App icon and splash screen** | Stores reject builds that use the default Unity icon. | *Player Settings → Icon* and *Splash Image*. |
 | **Trademarks** | The board uses real MTA line names and symbols. Store review can reject trademarked content used without permission. | Use stylised or invented line names before submitting to a store. |

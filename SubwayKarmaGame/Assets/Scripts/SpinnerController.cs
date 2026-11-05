@@ -91,6 +91,7 @@ public class SpinnerController : MonoBehaviour
     private SpriteRenderer _boardRenderer;
     private float          _lastAspect;
     private Vector3        _lastBoardSize;
+    private Rect           _lastSafeArea;
 
     // -- Player-positioned spinner -----------------------------------------
     // Drag to move; position is saved as a viewport fraction so it survives
@@ -157,7 +158,9 @@ public class SpinnerController : MonoBehaviour
         // Re-layout on window resize / device rotation, or once the board has been fitted.
         Camera cam = Camera.main;
         if (cam == null || _wheelWorldHeight <= 0f || _dragging) return;
-        if (!Mathf.Approximately(cam.aspect, _lastAspect) || BoardBounds(cam).size != _lastBoardSize)
+        if (!Mathf.Approximately(cam.aspect, _lastAspect) ||
+            BoardBounds(cam).size != _lastBoardSize ||
+            Screen.safeArea != _lastSafeArea)
             Layout();
     }
 
@@ -243,11 +246,13 @@ public class SpinnerController : MonoBehaviour
         if (cam == null || _wheelWorldHeight <= 0f) return;
 
         float camH = cam.orthographicSize * 2f;
-        float camW = camH * cam.aspect;
         Vector3 camPos = cam.transform.position;
         Bounds board = BoardBounds(cam);
 
-        float screenLeft = camPos.x - camW * 0.5f;
+        // Measure the left strip from the safe-area edge, not the physical screen
+        // edge, so a landscape camera cutout on the left can't cover the spinner.
+        Rect  safe       = SafeWorldRect(cam);
+        float screenLeft = safe.xMin;
         float sideStrip  = board.min.x - screenLeft;
         float sideSize   = Mathf.Min(sideStrip * SideMarginFill, camH * SideMaxHeightFrac);
 
@@ -279,6 +284,7 @@ public class SpinnerController : MonoBehaviour
 
         _lastAspect    = cam.aspect;
         _lastBoardSize = board.size;
+        _lastSafeArea  = Screen.safeArea;
     }
 
     /// <summary>World bounds of the board sprite, or an estimate if it isn't ready yet.</summary>
@@ -331,13 +337,23 @@ public class SpinnerController : MonoBehaviour
     private Vector3 ClampToScreen(Camera cam, Vector3 pos)
     {
         float radius = _wheelWorldHeight * _baseScale * _lift * 0.5f;
-        float halfH  = cam.orthographicSize;
-        float halfW  = halfH * cam.aspect;
-        Vector3 c    = cam.transform.position;
+        Rect  safe   = SafeWorldRect(cam);   // stay clear of notches and rounded corners
 
-        float x = halfW > radius ? Mathf.Clamp(pos.x, c.x - halfW + radius, c.x + halfW - radius) : c.x;
-        float y = halfH > radius ? Mathf.Clamp(pos.y, c.y - halfH + radius, c.y + halfH - radius) : c.y;
+        float x = safe.width  > radius * 2f ? Mathf.Clamp(pos.x, safe.xMin + radius, safe.xMax - radius) : safe.center.x;
+        float y = safe.height > radius * 2f ? Mathf.Clamp(pos.y, safe.yMin + radius, safe.yMax - radius) : safe.center.y;
         return new Vector3(x, y, transform.position.z);   // keep the lift depth
+    }
+
+    /// <summary>Safe area in world units, falling back to the full view if unavailable.</summary>
+    private static Rect SafeWorldRect(Camera cam)
+    {
+        Rect safe = SafeAreaFitter.WorldRect(cam);
+        if (safe.width > 0f && safe.height > 0f) return safe;
+
+        float halfH = cam.orthographicSize;
+        float halfW = halfH * cam.aspect;
+        Vector3 c   = cam.transform.position;
+        return Rect.MinMaxRect(c.x - halfW, c.y - halfH, c.x + halfW, c.y + halfH);
     }
 
     // -- Saved position -----------------------------------------------------

@@ -84,9 +84,12 @@ public class ScoreTracker : MonoBehaviour
 
         canvasGO.AddComponent<GraphicRaycaster>();
 
-        // Translucent panel anchored to top-right corner.
+        // Translucent panel anchored to the top-right corner of the SAFE AREA,
+        // so a camera notch / punch-hole / rounded corner can't cover it.
+        RectTransform safeArea = SafeAreaFitter.Create(canvasGO.transform);
+
         var panelGO = new GameObject("ScorePanel");
-        panelGO.transform.SetParent(canvasGO.transform, false);
+        panelGO.transform.SetParent(safeArea, false);
 
         _panel = panelGO.AddComponent<RectTransform>();
         _panel.anchorMin = new Vector2(1f, 1f);
