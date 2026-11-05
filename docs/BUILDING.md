@@ -237,13 +237,13 @@ Already handled:
 
 - **Screen rotation:** the game is landscape-only, and the board, tokens and spinner re-fit when a phone flips between the two landscape directions or a desktop window is resized.
 - **Notches and rounded corners:** the score panel and the spinner (its automatic spot and its drag limits) stay inside `Screen.safeArea`, via `SafeAreaFitter`. Put any new HUD element under a `SafeAreaFitter.Create(canvas)` area rather than directly on the canvas.
+- **App icon and splash screen:** artwork lives in `Assets/Art/Branding/` (default icon, Android adaptive foreground/background layers, splash logo), generated from the board's title card by `tools/make_branding.py`. Apply it with **Tools → Subway Karma → Apply App Icons and Splash Screen**. That sets every platform's icon and a splash screen showing the title card on charcoal, without the Unity logo. Re-run it after changing the artwork, then commit `ProjectSettings.asset`.
 
 Still to do:
 
 | Issue | Why it matters | Fix |
 | --- | --- | --- |
 | **Touch input** | Spinning and dragging use mouse events, which Unity also generates from single touches. Expected to work, but untested on a device. | Test tap, drag and press-and-hold-to-reset on a real phone. |
-| **App icon and splash screen** | Stores reject builds that use the default Unity icon. | *Player Settings → Icon* and *Splash Image*. |
 | **Trademarks** | The board uses real MTA line names and symbols. Store review can reject trademarked content used without permission. | Use stylised or invented line names before submitting to a store. |
 
 ---
