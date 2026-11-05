@@ -22,7 +22,7 @@ public class PlayerToken : MonoBehaviour
     private const float CarLength   = 0.85f;       // world units, nose to tail (a square is ~1.43)
     private const float CarPixels   = 480f;        // car length within the 512 px texture (make_tokens.py)
     private const int   ShadowOrder = 6;           // above the card pile (5)
-    private const int   CarOrder    = 7;           // below a card flying to a token (8) and the spinner (10)
+    private const int   CarOrder    = 7;           // below the spinner (10) and a revealed karma card (30)
     private static readonly Vector3 ShadowOffset = new Vector3(0.035f, -0.05f, 0f);   // light from top-left
 
     // Lane offsets across the track (world units), so cars sharing a square sit side by side.

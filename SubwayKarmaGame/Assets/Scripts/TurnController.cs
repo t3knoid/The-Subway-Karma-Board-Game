@@ -198,9 +198,14 @@ public class TurnController : MonoBehaviour
                     break;
 
                 case TurnEventKind.CardDrawn:
-                    // Top card of the centre pile flies to the player's token.
-                    if (KarmaDeckView.Instance != null && player.Token != null)
-                        yield return KarmaDeckView.Instance.TakeTopCard(player.Token.transform.position);
+                    // The card comes off the pile, flips face up in the middle of the screen,
+                    // waits for the player to click it (the computer's collects itself after
+                    // a moment), then flies into the player's subway car. Score updates after.
+                    if (KarmaDeckView.Instance != null)
+                        yield return KarmaDeckView.Instance.RevealCard(
+                            e.Card,
+                            player.Token != null ? player.Token.transform : null,
+                            waitForClick: player.playerType == PlayerType.Human);
                     player.AddCard(e.Card);
                     yield return new WaitForSeconds(CardPause);
                     break;

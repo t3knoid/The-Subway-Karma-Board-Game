@@ -1,6 +1,9 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+#if ENABLE_INPUT_SYSTEM
+using UnityEngine.InputSystem;
+#endif
 
 /// <summary>
 /// The karma draw pile in the centre of the board.
@@ -10,8 +13,11 @@ using UnityEngine;
 ///                            random interleaving, so every game looks different) and are
 ///                            squared up into a neat deck. GameManager waits for it before
 ///                            the first turn.
-///   TakeTopCard(worldPos)    When a card is drawn, the top card flies to the player's token
-///                            and disappears, so the pile shrinks as the game goes on.
+///   RevealCard(card, token)  When a card is drawn, the top card lifts off the pile, flies to
+///                            the middle of the screen, grows large and flips over to show its
+///                            face (Resources/CardFaces/{slug}.png). It waits for a click
+///                            (human) or a few seconds (computer), then flies into the
+///                            player's subway car. The pile shrinks as the game goes on.
 ///
 /// Purely visual: the real order is KarmaDeck's Fisher-Yates shuffle. Cards are children
 /// of the board, so they follow it when the screen rotates or resizes.
@@ -31,7 +37,6 @@ public class KarmaDeckView : MonoBehaviour
     private const float StackStep    = 0.012f;   // each card sits slightly higher → pile has some thickness
     private const float ZStep        = 0.002f;   // later cards drawn on top (orthographic z sort)
     private const int   SortingOrder = 5;        // above board (0) and tap zones (1), below spinner (10)
-    private const int   FlyingOrder  = 8;        // a card being drawn passes over the pile
 
     // -- Timing (seconds) ---------------------------------------------------------------
     private const float DealTime    = 0.55f;
@@ -41,7 +46,18 @@ public class KarmaDeckView : MonoBehaviour
     private const float DropTime    = 0.14f;
     private const float DropStagger = 0.022f;
     private const float SquareTime  = 0.25f;
-    private const float TakeTime    = 0.45f;
+
+    // -- Card reveal -------------------------------------------------------------------
+    private const float RevealWidth    = 5.6f;   // world units (the screen is 10 tall), easy to read
+    private const float RevealZ        = -3f;    // in front of tokens (-0.5) and the spinner (-0.6 / -1)
+    private const int   RevealOrder    = 30;     // drawn above everything on the board
+    private const int   DimOrder       = 29;
+    private const float DimAlpha       = 0.5f;
+    private const float LiftTime       = 0.2f;
+    private const float ToCentreTime   = 0.45f;
+    private const float FlipTime       = 0.34f;
+    private const float CollectTime    = 0.5f;
+    private const float CpuShowSeconds = 2.5f;   // computer's cards collect themselves (a click skips)
 
     private const float SplitDistance = 4.4f;    // how far the halves move apart (along the cards' long side)
 
@@ -51,6 +67,8 @@ public class KarmaDeckView : MonoBehaviour
     private readonly List<SpriteRenderer> _pool  = new List<SpriteRenderer>();
     private readonly List<SpriteRenderer> _stack = new List<SpriteRenderer>();   // bottom → top
     private Sprite    _back;
+    private readonly Dictionary<string, Sprite> _faces = new Dictionary<string, Sprite>();
+    private SpriteRenderer _dim;
     private Transform _board;
     private int       _running;   // active card tweens
 
@@ -98,33 +116,83 @@ public class KarmaDeckView : MonoBehaviour
         yield return WaitForTweens();
     }
 
-    /// <summary>Moves the top card to <paramref name="worldTarget"/> (a player's token) and removes it.</summary>
-    public IEnumerator TakeTopCard(Vector3 worldTarget)
+    /// <summary>
+    /// Shows a drawn card: the top card comes off the pile to the middle of the screen,
+    /// flips to its face, waits (for a click when <paramref name="waitForClick"/>, otherwise a
+    /// few seconds or a click), then flies into <paramref name="token"/>.
+    /// </summary>
+    public IEnumerator RevealCard(KarmaCard card, Transform token, bool waitForClick)
     {
         if (_stack.Count == 0 || _board == null) yield break;
+        Camera cam = Camera.main;
 
-        var card = _stack[_stack.Count - 1];
+        var sr = _stack[_stack.Count - 1];
         _stack.RemoveAt(_stack.Count - 1);
-        card.sortingOrder = FlyingOrder;
+        Transform t = sr.transform;
 
-        Vector3 target = transform.InverseTransformPoint(worldTarget);
-        target.z = card.transform.localPosition.z;
-        Vector3 start  = card.transform.localPosition;
-        float   rot0   = card.transform.localEulerAngles.z;
-        float   rot1   = rot0 + Random.Range(-90f, 90f);
+        // Leave the tilted, board-scaled pile: from here on, animate in world space.
+        t.SetParent(null, true);
+        sr.sortingOrder = RevealOrder;
+        float bigScale  = RevealWidth / CardWidth;           // sprite is CardWidth units wide at scale 1
+        Vector3 centre  = cam != null ? new Vector3(cam.transform.position.x, cam.transform.position.y, RevealZ)
+                                      : new Vector3(0f, 0f, RevealZ);
+        ShowDim(cam);
 
-        for (float t = 0f; t < 1f; t += Time.deltaTime / TakeTime)
+        // 1. Lift off the pile.
+        Vector3 p0 = t.position;
+        Vector3 lifted = new Vector3(p0.x, p0.y + 0.3f, RevealZ);
+        float s0 = t.localScale.x;
+        yield return Animate(LiftTime, e =>
         {
-            float e = EaseInOut(t);
-            Vector3 p = Vector3.Lerp(start, target, e);
-            p.y += Mathf.Sin(e * Mathf.PI) * 1.5f;                       // small arc
-            card.transform.localPosition = p;
-            card.transform.localRotation = Quaternion.Euler(0f, 0f, Mathf.LerpAngle(rot0, rot1, e));
-            card.transform.localScale    = Vector3.one * Mathf.Lerp(1f, 0.35f, e);
-            card.color = new Color(1f, 1f, 1f, Mathf.Lerp(1f, 0f, Mathf.InverseLerp(0.6f, 1f, e)));
+            t.position   = Vector3.Lerp(p0, lifted, e);
+            t.localScale = Vector3.one * Mathf.Lerp(s0, s0 * 1.15f, e);
+            SetDim(DimAlpha * 0.4f * e);
+        }, EaseOut);
+
+        // 2. Fly to the middle of the screen, straighten up and grow.
+        float rot0 = t.eulerAngles.z, s1 = t.localScale.x;
+        yield return Animate(ToCentreTime, e =>
+        {
+            t.position   = Vector3.Lerp(lifted, centre, e);
+            t.rotation   = Quaternion.Euler(0f, 0f, rot0 + Mathf.DeltaAngle(rot0, 0f) * e);
+            t.localScale = Vector3.one * Mathf.Lerp(s1, bigScale, e);
+            SetDim(DimAlpha * (0.4f + 0.6f * e));
+        }, EaseInOut);
+
+        // 3. Flip over: squash to edge-on, swap to the face, open back up.
+        Sprite face = FaceFor(card);
+        yield return Animate(FlipTime, e =>
+        {
+            float open = Mathf.Abs(Mathf.Cos(e * Mathf.PI));       // 1 -> 0 -> 1
+            if (e >= 0.5f && face != null) sr.sprite = face;
+            t.localScale = new Vector3(bigScale * open, bigScale * (1f + 0.06f * Mathf.Sin(e * Mathf.PI)), 1f);
+        }, x => x);
+        t.localScale = Vector3.one * bigScale;
+
+        // 4. Wait for the player to click the card (or a few seconds for the computer).
+        yield return null;                                          // ignore a click from this same frame
+        float waited = 0f;
+        while (!ClickedOn(sr, cam))
+        {
+            if (!waitForClick && (waited += Time.deltaTime) >= CpuShowSeconds) break;
             yield return null;
         }
-        card.gameObject.SetActive(false);
+
+        // 5. Into the subway car: shrink, spin a little and fade as it arrives.
+        Vector3 from = t.position;
+        Vector3 to   = token != null ? new Vector3(token.position.x, token.position.y, RevealZ) : centre;
+        float spin   = Random.Range(-120f, 120f);
+        yield return Animate(CollectTime, e =>
+        {
+            t.position   = Vector3.Lerp(from, to, e) + Vector3.up * Mathf.Sin(e * Mathf.PI) * 0.6f;
+            t.rotation   = Quaternion.Euler(0f, 0f, spin * e);
+            t.localScale = Vector3.one * Mathf.Lerp(bigScale, bigScale * 0.08f, e);
+            sr.color     = new Color(1f, 1f, 1f, 1f - Mathf.InverseLerp(0.65f, 1f, e));
+            SetDim(DimAlpha * (1f - e));
+        }, EaseInOut);
+
+        HideDim();
+        RestoreToPool(sr);
     }
 
     // -- Shuffle ------------------------------------------------------------------------
@@ -221,12 +289,138 @@ public class KarmaDeckView : MonoBehaviour
         _stack.Clear();
         for (int i = 0; i < _pool.Count; i++)
         {
-            var sr = _pool[i];
-            sr.gameObject.SetActive(false);
-            sr.color = Color.white;
-            sr.transform.localScale = Vector3.one;
-            if (i < count) _stack.Add(sr);
+            RestoreToPool(_pool[i]);
+            if (i < count) _stack.Add(_pool[i]);
         }
+        HideDim();
+    }
+
+    /// <summary>Puts a card back in the pile's frame, face down and hidden, ready to deal again.</summary>
+    private void RestoreToPool(SpriteRenderer sr)
+    {
+        sr.transform.SetParent(transform, false);
+        sr.transform.localScale    = Vector3.one;
+        sr.transform.localRotation = Quaternion.identity;
+        sr.sprite       = _back;
+        sr.color        = Color.white;
+        sr.sortingOrder = SortingOrder;
+        sr.gameObject.SetActive(false);
+    }
+
+    // -- Card faces ---------------------------------------------------------------------
+
+    /// <summary>File name for a card face; must match slug() in tools/make_cards.py.</summary>
+    public static string Slug(string title)
+    {
+        var sb = new System.Text.StringBuilder();
+        bool gap = false;
+        foreach (char ch in title.ToLowerInvariant())
+        {
+            bool alnum = (ch >= 'a' && ch <= 'z') || (ch >= '0' && ch <= '9');
+            if (!alnum) { gap = true; continue; }
+            if (gap && sb.Length > 0) sb.Append('_');
+            sb.Append(ch);
+            gap = false;
+        }
+        return sb.ToString();
+    }
+
+    private Sprite FaceFor(KarmaCard card)
+    {
+        string key = Slug(card.title);
+        if (_faces.TryGetValue(key, out var cached)) return cached;
+
+        var tex = Resources.Load<Texture2D>("CardFaces/" + key);
+        Sprite sprite = null;
+        if (tex != null)
+        {
+            float h = CardBackHeight * tex.height / 1024f;
+            sprite = Sprite.Create(tex, new Rect(0f, (tex.height - h) * 0.5f, tex.width, h),
+                                   new Vector2(0.5f, 0.5f), tex.width / CardWidth);
+        }
+        else
+        {
+            Debug.LogWarning($"[KarmaDeckView] No face image Resources/CardFaces/{key}.png for '{card.title}' " +
+                             "(run tools/make_cards.py). Showing the card back.");
+        }
+        _faces[key] = sprite;
+        return sprite;
+    }
+
+    // -- Dimmed backdrop during a reveal (also blocks clicks on the board) -------------
+
+    private void ShowDim(Camera cam)
+    {
+        if (_dim == null)
+        {
+            var go = new GameObject("CardRevealDim");
+            _dim = go.AddComponent<SpriteRenderer>();
+            var tex = Texture2D.whiteTexture;
+            _dim.sprite = Sprite.Create(tex, new Rect(0, 0, tex.width, tex.height), new Vector2(0.5f, 0.5f), tex.width);
+            _dim.sortingOrder = DimOrder;
+            go.AddComponent<BoxCollider2D>().size = Vector2.one;   // nearest collider, so board squares don't get the click
+        }
+        float h = cam != null ? cam.orthographicSize * 2f + 2f : 12f;
+        float w = cam != null ? h * cam.aspect + 2f : 24f;
+        Vector3 c = cam != null ? cam.transform.position : Vector3.zero;
+        _dim.transform.position   = new Vector3(c.x, c.y, RevealZ + 0.5f);
+        _dim.transform.localScale = new Vector3(w, h, 1f);
+        SetDim(0f);
+        _dim.gameObject.SetActive(true);
+    }
+
+    private void SetDim(float alpha)
+    {
+        if (_dim != null) _dim.color = new Color(0f, 0f, 0f, alpha);
+    }
+
+    private void HideDim()
+    {
+        if (_dim != null) _dim.gameObject.SetActive(false);
+    }
+
+    // -- Pointer ------------------------------------------------------------------------
+
+    /// <summary>True on the frame the mouse/touch is pressed over <paramref name="sr"/>.</summary>
+    private static bool ClickedOn(SpriteRenderer sr, Camera cam)
+    {
+        if (cam == null) return false;
+        Vector2 screen = Vector2.zero;
+        bool pressed = false;
+        bool read = false;
+#if ENABLE_INPUT_SYSTEM
+        var pointer = Pointer.current;
+        if (pointer != null)
+        {
+            pressed = pointer.press.wasPressedThisFrame;
+            screen  = pointer.position.ReadValue();
+            read    = true;
+        }
+#endif
+#if ENABLE_LEGACY_INPUT_MANAGER
+        if (!read)
+        {
+            pressed = Input.GetMouseButtonDown(0);
+            screen  = Input.mousePosition;
+        }
+#endif
+        if (!pressed) return false;
+
+        Vector3 w = cam.ScreenToWorldPoint(screen);
+        Bounds b  = sr.bounds;
+        return w.x >= b.min.x && w.x <= b.max.x && w.y >= b.min.y && w.y <= b.max.y;
+    }
+
+    // -- Simple time-based animation helper ---------------------------------------------
+
+    private static IEnumerator Animate(float duration, System.Action<float> step, Ease ease)
+    {
+        for (float k = 0f; k < 1f; k += Time.deltaTime / duration)
+        {
+            step(ease(Mathf.Clamp01(k)));
+            yield return null;
+        }
+        step(1f);
     }
 
     private static Vector3 StackPosition(int i) => new Vector3(0f, i * StackStep, StackZ(i));

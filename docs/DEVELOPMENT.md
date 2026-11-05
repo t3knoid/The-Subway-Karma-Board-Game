@@ -202,7 +202,7 @@ The code has two layers:
 | `Rules/TurnResolver` | All movement, card-draw and square-effect rules. Returns events (`Moved`, `CardDrawn`, `LoseNextTurn`, `BonusSpinRequired`, `DeckExhausted`). |
 | `Rules/StandardGame` | Board layout and deck contents, the single source of truth for both. |
 | `KarmaDeck` | Shuffled deck (Fisher-Yates); implements `ICardSource`. |
-| `KarmaDeckView` | The draw pile in the centre of the board. At game start it deals the 26 card backs in and riffle-shuffles them (random each game) before the first turn; on each draw the top card flies to the player's token. Visual only. |
+| `KarmaDeckView` | The draw pile on the board's title card. At game start it deals the 26 card backs in and riffle-shuffles them (random each game) before the first turn. On each draw the top card flies to the middle of the screen, flips to its face (`Resources/CardFaces/`), waits for a click (the computer's cards collect themselves after 2.5 s) and then flies into the player's subway car. Visual only. |
 | `PlayerState` | Plain data per player: position, karma total, hand, `loseNextTurn`. |
 | `PlayerToken` | Illustrated top-down subway car (one colour per player, from `Resources/Tokens/`, drawn by `tools/make_tokens.py`) with a soft shadow. Each player drives in their own lane; `MoveTo` / `SnapTo` a square. |
 | `SpinnerController` | Animated spinner; fires `OnSpinComplete(int)`. `Interactable` gates taps. |

@@ -9,6 +9,7 @@ Output (US Letter, 300 dpi, Avery 5371 business-card layout: 2 x 5 cards of 3.5"
     assets/karma3.jpg    special cards
     Karma Cards.pdf      all sheets, ready to print at 100% scale
     SubwayKarmaGame/Assets/Resources/card_back.png   in-game card back (deck animation)
+    SubwayKarmaGame/Assets/Resources/CardFaces/*.png  in-game card faces (card reveal)
 
 Usage (from the repo root, Windows; needs Pillow and the Franklin Gothic / Arial Black fonts):
     python -I tools/make_cards.py [preview_dir]
@@ -37,6 +38,9 @@ GREEN_STRIPE = (0x84, 0xaa, 0x0e)
 # In-game card back (KarmaDeckView.cs cuts the CARD_BACK_H strip out of a 1024 x 1024 texture).
 CARD_BACK_PATH = "SubwayKarmaGame/Assets/Resources/card_back.png"
 CARD_BACK_H = 584                                 # 1024 x 584 ≈ 3.5 : 2, like the printed cards
+
+# In-game card faces, one per distinct card, named by slug(title) (KarmaDeckView.Slug in C#).
+CARD_FACE_DIR = "SubwayKarmaGame/Assets/Resources/CardFaces"
 
 FONTS = "C:/Windows/Fonts/"
 TITLE_FONT = FONTS + "FRABK.TTF"                  # Franklin Gothic Book (as on the original cards)
@@ -194,6 +198,38 @@ def card_back():
     return tex
 
 
+def slug(title):
+    """File name for a card face. Must match KarmaDeckView.Slug() in C#."""
+    return re.sub(r"[^a-z0-9]+", "_", title.lower()).strip("_")
+
+
+def card_face(title, points, kind):
+    """In-game card face: the printed design with rounded corners, a border and a tap hint,
+    centred in a 1024 x 1024 power-of-two texture like the card back."""
+    face = draw_card(title, points, kind).convert("RGBA")
+    d = ImageDraw.Draw(face)
+    hint = ImageFont.truetype(TITLE_FONT, 30)
+    text = "Click the card to collect it"
+    tw, th, b = text_size(d, text, hint)
+    d.text(((face.width - tw) / 2 - b[0], face.height - 46 - b[1]), text, font=hint, fill=(0x9a, 0x9a, 0x9a))
+
+    face = face.resize((1024, CARD_BACK_H), Image.LANCZOS)
+    s = 2
+    mask = Image.new("L", (1024 * s, CARD_BACK_H * s), 0)
+    ImageDraw.Draw(mask).rounded_rectangle([0, 0, 1024 * s - 1, CARD_BACK_H * s - 1], radius=48 * s, fill=255)
+    mask = mask.resize(face.size, Image.LANCZOS)
+    card = Image.new("RGBA", face.size, (0, 0, 0, 0))
+    card.paste(face, (0, 0), mask)
+    border = Image.new("RGBA", (1024 * s, CARD_BACK_H * s), (0, 0, 0, 0))
+    ImageDraw.Draw(border).rounded_rectangle([3 * s, 3 * s, 1024 * s - 1 - 3 * s, CARD_BACK_H * s - 1 - 3 * s],
+                                            radius=46 * s, outline=INK, width=8 * s)
+    card.alpha_composite(border.resize(face.size, Image.LANCZOS))
+
+    tex = Image.new("RGBA", (1024, 1024), (0, 0, 0, 0))
+    tex.alpha_composite(card, (0, (1024 - CARD_BACK_H) // 2))
+    return tex
+
+
 def dashed(d, p0, p1, dash=18, gap=14):
     (x0, y0), (x1, y1) = p0, p1
     length = math.hypot(x1 - x0, y1 - y0)
@@ -240,6 +276,14 @@ def main():
 
     card_back().save(CARD_BACK_PATH, optimize=True)
     print("card back ->", CARD_BACK_PATH)
+
+    os.makedirs(CARD_FACE_DIR, exist_ok=True)
+    unique = {}
+    for c in deck:
+        unique.setdefault(slug(c[0]), c)
+    for name, c in unique.items():
+        card_face(*c).save(os.path.join(CARD_FACE_DIR, name + ".png"), optimize=True)
+    print(f"{len(unique)} card faces -> {CARD_FACE_DIR}")
 
     if len(sys.argv) > 1:                         # optional small previews for review
         os.makedirs(sys.argv[1], exist_ok=True)
