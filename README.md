@@ -27,3 +27,10 @@ I never got a chance to design any game pieces so you'll have to be creative her
 ## Customizing
 
 Use the Karma Cards.pub file as a template to create new cards.
+
+## Digital Version
+
+A Unity version of the game lives in [`SubwayKarmaGame/`](SubwayKarmaGame/).
+
+- [Development Guide](docs/DEVELOPMENT.md): requirements, building, running, testing and debugging
+- [Game Rules](docs/GAME_RULES.md): the rules spec the digital version implements

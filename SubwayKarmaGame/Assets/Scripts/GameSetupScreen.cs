@@ -3,11 +3,12 @@ using UnityEngine.UI;
 
 /// <summary>
 /// Entry-point screen shown at game start that lets the player choose a mode:
-///   • Solo Play   — single human player (solitaire, existing behaviour)
+///   • Solo Play   — single human player (solitaire)
 ///   • vs Computer — human + RNG-based CPU opponent
 ///
-/// Disables the Spinner until a mode is selected (so the spinner cannot be
-/// tapped before game mode is set). Built entirely at runtime; no scene YAML.
+/// Creates the players and their tokens, then calls GameManager.StartGame().
+/// TurnController keeps the spinner hidden until a human needs to spin.
+/// Built entirely at runtime; no scene YAML.
 ///
 /// sortingOrder = 300 — renders above ScoreTracker (100) and ResultsScreen (200).
 /// </summary>
@@ -19,10 +20,6 @@ public class GameSetupScreen : MonoBehaviour
     void Start()
     {
         BuildUI();
-
-        // Prevent the spinner from being interacted with before setup is done.
-        if (SpinnerController.Instance != null)
-            SpinnerController.Instance.gameObject.SetActive(false);
     }
 
     // -- UI construction ----------------------------------------------------
@@ -171,42 +168,30 @@ public class GameSetupScreen : MonoBehaviour
 
     private void StartGame(bool vsComputer)
     {
-        if (vsComputer)
-            CreateComputerOpponent();
+        var gm = GameManager.Instance;
+        if (gm == null)
+        {
+            Debug.LogError("[GameSetupScreen] No GameManager found.");
+            return;
+        }
 
-        // Re-enable spinner — human always goes first (index 0).
-        if (SpinnerController.Instance != null)
-            SpinnerController.Instance.gameObject.SetActive(true);
+        // Human always takes the first turn (slot 0 = MTA Blue token).
+        AddPlayer(gm, 0, "Player", PlayerType.Human);
+        if (vsComputer)
+            AddPlayer(gm, 1, "CPU", PlayerType.Computer);   // slot 1 = Crimson token
 
         // Hide setup overlay.
         _panel.SetActive(false);
         gameObject.SetActive(false);
 
         Debug.Log($"[GameSetupScreen] Game started. vsComputer={vsComputer}");
+        gm.StartGame();
     }
 
-    // -- Computer opponent setup -------------------------------------------
-
-    private void CreateComputerOpponent()
+    private static void AddPlayer(GameManager gm, int id, string name, PlayerType type)
     {
-        // PlayerState for CPU
-        var cpStateGO = new GameObject("ComputerState");
-        Object.DontDestroyOnLoad(cpStateGO);
-        var cpState           = cpStateGO.AddComponent<PlayerState>();
-        cpState.playerId      = 1;
-        cpState.playerName    = "CPU";
-        cpState.playerType    = PlayerType.Computer;
-
-        // ComputerPlayer controller
-        var cpCtrlGO = new GameObject("ComputerPlayer");
-        Object.DontDestroyOnLoad(cpCtrlGO);
-        var cpCtrl         = cpCtrlGO.AddComponent<ComputerPlayer>();
-        cpCtrl.playerState = cpState;   // set before Start() runs
-
-        // Register with GameManager (ScoreTracker will pick up the new row too).
-        GameManager.Instance?.RegisterPlayer(cpState);
-        GameManager.Instance?.RegisterComputerPlayer(cpCtrl);
-
-        Debug.Log("[GameSetupScreen] CPU opponent created and registered.");
+        var player   = new PlayerState(id, name, type);
+        player.Token = PlayerToken.Create(id, player.boardIndex);
+        gm.RegisterPlayer(player);   // ScoreTracker adds a row for each registration
     }
 }

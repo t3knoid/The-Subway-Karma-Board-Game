@@ -88,12 +88,21 @@ The spinner is used:
 4. **Apply square effect** — resolve the square the token landed on:
    - **Station:** card already drawn in step 3.
    - **Express Train:** spin again; move that many additional spaces forward (no further card draws for squares passed during the bonus move unless a Station is crossed).
-   - **Early Train:** move 1 space ahead immediately.
+   - **Early Train:** move 1 space ahead immediately, then apply the square reached (e.g. 8 → 9 Late Train loses the next turn).
    - **Late Train:** lose next turn.
    - **Sick Passenger:** move 1 space back immediately.
    - **Blank** considered a NoOp.
    - The resulting square the player lands on when **moving back** is considered a NoOp.
 5. **End turn** — pass to the next player (or in solitaire, begin the next turn).
+
+### Clarifications used by the digital version
+
+These cases aren't spelled out on the physical board; the rules engine (`TurnResolver`) handles them as follows:
+
+- **Express Train bonus move:** draws a card for every Station passed or landed on, but the square reached is otherwise ignored, so Express Trains never chain and a bonus move ending on Late Train has no penalty.
+- **Moving back** (Sick Passenger) never draws a card, even onto a Station.
+- **Last card:** the game ends the moment the last karma card is drawn, even mid-move. The token stops on that Station and no further square effects apply.
+- **Late Train penalty:** tracked per player; in multiplayer only the player who landed there skips their next turn.
 
 ---
 
