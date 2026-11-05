@@ -125,15 +125,26 @@ Notes:
 
 ### Hosting on GitHub Pages
 
-GitHub Pages can't send the `Content-Encoding` headers Unity's compressed builds expect. Use one of these:
-- *Player Settings → Publishing Settings*: keep **Compression Format = Gzip** (current) and turn on **Decompression Fallback**.
-- Or set **Compression Format = Disabled**. This gives larger downloads but no server requirements.
+The game is published at **https://t3knoid.github.io/The-Subway-Karma-Board-Game/**.
 
-Then publish the *contents* of `Builds/WebGL/` to GitHub Pages:
-- **Manually:** push them to a `gh-pages` branch and enable Pages for that branch in the repository settings.
-- **Automatically:** a GitHub Actions workflow (e.g. using GameCI) that builds WebGL and deploys it. This needs a Unity licence stored as repository secrets.
+**Settings:** Decompression Fallback is turned on (*Player Settings → Web → Publishing Settings*, with Compression Format **Gzip**). GitHub Pages can't send the `Content-Encoding` headers that compressed builds otherwise need, so without the fallback the page stays blank.
 
-Keep web builds out of `main`.
+**To deploy:**
+
+1. In Unity, *File → Build Profiles → Web → **Build*** into `SubwayKarmaGame/Builds/WebGL/`. Use **Build And Run** first to test it locally.
+2. From Git Bash, in the repo:
+   ```sh
+   tools/deploy_web.sh            # check, commit and publish
+   tools/deploy_web.sh --dry-run  # everything except the push
+   ```
+3. Wait a minute or two, then open the URL above. Hard-refresh (Ctrl+F5) if you still see the old version.
+
+What the script does:
+- **Checks the build:** stops if there's no build, or if it was made without Decompression Fallback. It warns if game files changed after the build was made.
+- **Publishes:** commits the build to the **`gh-pages`** branch from a temporary repository with no Git LFS rules, because GitHub Pages can't serve LFS files. It commits as your git identity (use your GitHub noreply address, or the push fails with `GH007`) and force-pushes, so the branch only ever holds the latest build.
+- **Enables Pages:** on the first deploy, if the GitHub CLI (`gh`) is logged in, it turns on GitHub Pages for `gh-pages`. Otherwise enable it once under *Settings → Pages → Deploy from a branch → `gh-pages` / (root)*.
+
+Keep web builds out of `main`. A GitHub Actions workflow could build and deploy automatically on every merge, but building in CI needs a Unity licence stored as repository secrets (e.g. with GameCI).
 
 ---
 
