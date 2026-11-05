@@ -125,26 +125,70 @@ Notes:
 
 ### Hosting on GitHub Pages
 
-The game is published at **https://t3knoid.github.io/The-Subway-Karma-Board-Game/**.
+The game is published to the repository's GitHub Pages site. The account uses a custom domain, so the address is **http://portfolio.refol.us/The-Subway-Karma-Board-Game/** (*Settings → Pages* shows the current one).
+
+Pages must serve the **`gh-pages`** branch (*Settings → Pages → Deploy from a branch → `gh-pages` / (root)*). Both deploy methods below publish there. `deploy_web.sh` switches the setting for you if it points elsewhere.
 
 **Settings:** Decompression Fallback is turned on (*Player Settings → Web → Publishing Settings*, with Compression Format **Gzip**). GitHub Pages can't send the `Content-Encoding` headers that compressed builds otherwise need, so without the fallback the page stays blank.
 
-**To deploy:**
+#### Automatic deploys (GitHub Actions)
+
+[`.github/workflows/deploy-web.yml`](../.github/workflows/deploy-web.yml) runs on every push to `main` that changes `SubwayKarmaGame/Assets`, `Packages` or `ProjectSettings`. You can also start it by hand: *Actions → Deploy web build → Run workflow*. It uses [GameCI](https://game.ci) to run Unity in the cloud:
+
+1. **EditMode tests:** the deploy stops if any fail. Results are attached to the run.
+2. **WebGL build:** using the Unity version in `ProjectVersion.txt`, with the `Library` folder cached between runs.
+3. **Checks the build:** it must have an `index.html` and must not use compression without the fallback.
+4. **Publishes:** force-pushes the build to `gh-pages`. A copy of the build is also attached to the run for 7 days.
+
+**One-time setup: Unity licence secrets.** Unity needs a licence even in CI. Add these under *Settings → Secrets and variables → Actions → New repository secret*:
+
+| Secret | Value |
+| --- | --- |
+| `UNITY_EMAIL` | The email of the build account (see below) |
+| `UNITY_PASSWORD` | The build account's password |
+| `UNITY_LICENSE` | The full contents of the build account's licence file, `Unity_lic.ulf` |
+
+Or from a terminal with the GitHub CLI: `gh secret set UNITY_LICENSE < "C:/ProgramData/Unity/Unity_lic.ulf"`, plus `gh secret set UNITY_EMAIL` and `gh secret set UNITY_PASSWORD`, which prompt for the value.
+
+**Use a dedicated build account.** Keep two-factor sign-in on your own Unity ID. CI can't answer a 2FA prompt, so give it a separate free account that does nothing except build:
+
+1. **Create the account:** sign up for a new Unity ID at [id.unity.com](https://id.unity.com) with a different email address (a `+ci` alias such as `you+unity-ci@example.com` works with most mail providers). Don't turn on two-factor sign-in.
+2. **Activate a licence:** in Unity Hub, sign out of your own account and sign in with the build account. Under *Preferences → Licenses*, choose *Add → Get a free personal license*.
+3. **Copy the licence file:** Hub writes it to `C:\ProgramData\Unity\Unity_lic.ulf` on Windows, or `/Library/Application Support/Unity/Unity_lic.ulf` on macOS. Paste its full contents into the `UNITY_LICENSE` secret (or use the `gh secret set` command above). Then set `UNITY_EMAIL` and `UNITY_PASSWORD` to the build account's details.
+4. **Switch back:** sign out of the build account and sign in with your own. Hub reactivates your licence, which replaces the licence file on your machine. The copy in the secret keeps working.
+
+If the licence file isn't created, or the build step reports an activation error, follow GameCI's [activation guide](https://game.ci/docs/github/activation) instead.
+
+**Fallback: build account with an authenticator app.** If Unity requires two-factor sign-in on the build account too, use an authenticator app rather than phone codes:
+
+1. In the build account's settings, set up two-factor sign-in with an authenticator app. When Unity shows the QR code, also choose to show the **setup key** (the text version of the code) and save it.
+2. Add it as another repository secret, `UNITY_TOTP_KEY`. Treat it like a password: with it, anyone can generate sign-in codes for that account.
+3. Activate the licence with GameCI's [unity-license-activate](https://github.com/game-ci/unity-license-activate) tool, which accepts the setup key to pass the 2FA step. It doesn't support phone (SMS) codes.
+
+The workflow doesn't read `UNITY_TOTP_KEY` yet, and this fallback hasn't been tested with it. Check GameCI's current docs before relying on it.
+
+Notes:
+- **First run:** about 20–40 minutes, mostly importing the project. Later runs reuse the cached `Library` and are faster.
+- **Git LFS bandwidth:** each run downloads the LFS images (a few MB). GitHub's free LFS bandwidth is 1 GB a month, which is plenty for normal use.
+- **Unity version:** GameCI needs a Docker image for this exact version (6000.6.8f1). If the build step reports none, check [GameCI's version list](https://game.ci/docs/docker/versions) and either pick a supported version or wait for the image.
+
+#### Manual deploys (from your machine)
 
 1. In Unity, *File → Build Profiles → Web → **Build*** into `SubwayKarmaGame/Builds/WebGL/`. Use **Build And Run** first to test it locally.
 2. From Git Bash, in the repo:
    ```sh
-   tools/deploy_web.sh            # check, commit and publish
-   tools/deploy_web.sh --dry-run  # everything except the push
+   tools/deploy_web.sh                       # check, commit and publish
+   tools/deploy_web.sh --dry-run             # everything except the push
+   tools/deploy_web.sh --build-dir <folder>  # publish a build from another folder
    ```
-3. Wait a minute or two, then open the URL above. Hard-refresh (Ctrl+F5) if you still see the old version.
+3. Wait a minute or two, then open the address above. Hard-refresh (Ctrl+F5) if you still see the old version.
 
 What the script does:
-- **Checks the build:** stops if there's no build, or if it was made without Decompression Fallback. It warns if game files changed after the build was made.
-- **Publishes:** commits the build to the **`gh-pages`** branch from a temporary repository with no Git LFS rules, because GitHub Pages can't serve LFS files. It commits as your git identity (use your GitHub noreply address, or the push fails with `GH007`) and force-pushes, so the branch only ever holds the latest build.
-- **Enables Pages:** on the first deploy, if the GitHub CLI (`gh`) is logged in, it turns on GitHub Pages for `gh-pages`. Otherwise enable it once under *Settings → Pages → Deploy from a branch → `gh-pages` / (root)*.
+- **Checks the build:** stops if there's no build, or if it was made without Decompression Fallback. It warns if game files changed after the build was made. It only reads the build folder and never changes it.
+- **Publishes:** commits the build to **`gh-pages`** from a temporary repository with no Git LFS rules, because GitHub Pages can't serve LFS files. It commits as your git identity (use your GitHub noreply address, or the push fails with `GH007`) and force-pushes, so the branch only ever holds the latest build.
+- **Sets up Pages:** if the GitHub CLI (`gh`) is logged in, it enables Pages for `gh-pages` on the first deploy, or switches Pages over to `gh-pages` if it's serving another branch.
 
-Keep web builds out of `main`. A GitHub Actions workflow could build and deploy automatically on every merge, but building in CI needs a Unity licence stored as repository secrets (e.g. with GameCI).
+Keep web builds out of `main`.
 
 ---
 
