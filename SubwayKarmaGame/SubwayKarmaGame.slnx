@@ -1,5 +1,6 @@
 ﻿<Solution>
   <Project Path="Assembly-CSharp.csproj" />
   <Project Path="SubwayKarma.Rules.csproj" />
+  <Project Path="Assembly-CSharp-Editor.csproj" />
   <Project Path="SubwayKarma.Rules.Tests.csproj" />
 </Solution>
