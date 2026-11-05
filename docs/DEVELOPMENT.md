@@ -145,9 +145,12 @@ The-Subway-Karma-Game/
 ├── README.md                   Board-game overview (print-and-play)
 ├── docs/
 │   ├── GAME_RULES.md           Authoritative rules spec for the digital version
+│   ├── BUILDING.md             Per-platform build requirements and steps
 │   └── DEVELOPMENT.md          This file
-├── Subway Karma Game.pdf/.pub  Original printable board
-├── Karma Cards.pdf/.pub        Original printable cards
+├── Subway Karma Game.pdf       Printable board + cut-out spinner (generated)
+├── Karma Cards.pdf             Printable karma cards (generated)
+├── assets/karma1-3.jpg         Card sheets as images (generated)
+├── tools/                      Generators for board, cards, icons and printables (Python + Pillow)
 └── SubwayKarmaGame/            ← Unity project (open this folder in Unity Hub)
     ├── Assets/
     │   ├── Resources/          Images loaded at runtime (board.jpg, spinner.png, spinner_arrow.png)

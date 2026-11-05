@@ -21,12 +21,14 @@ A single-player (solitaire) board game set on the New York City subway system. T
 
 The board is a **closed perimeter loop of 22 squares played clockwise**. The center panel (titled "The Subway KARMA Game") is decorative and represents the karma card draw pile. The corner spaces represent subway stations. Each station is identified with the station location and line identifier. The rest of the square spaces represent the connections between the subway stations. Landing instructions on a square triggers an action the player must take.
 
+The digital board (`SubwayKarmaGame/Assets/Resources/board.jpg`, drawn by `tools/make_board.py`) uses **invented lines** with subway-like colours (red Riverside, orange Americas, blue Hudson, yellow Queensboro) and diamond-shaped markers, plus real New York neighbourhood names that are deliberately not real station names. It contains no MTA map, route symbols or line names.
+
 ### Square Types
 
 | Type | Background | Font Color | Effect |
 | --- | --- | --- | --- |
-| Station | Black (subway-styled) shows the line identifier at the bottom of the square, the station location is just above the identifier with a white background | White for the line identifier and black for the station name | Draw a karma card when landed on or passed |
-| Express Train | Black | White | Spin again; move that many additional spaces forward |
+| Station | Black panel with the line's diamond marker and name; the location is on a white panel | White for the line name, black for the location | Draw a karma card when landed on or passed |
+| Express Train | Black band with the line's diamond marker and name, over green | White | Spin again; move that many additional spaces forward |
 | Early Train | Green | White | Move 1 space ahead |
 | Late Train | Green | Red | Lose a turn |
 | Sick Passenger | Green | Red | Go back 1 space |
@@ -37,28 +39,28 @@ The board is a **closed perimeter loop of 22 squares played clockwise**. The cen
 
 | Index | Square Name | Type |
 | --- | --- | --- |
-| 0 | Broadway / 7 Avenue Local (1) 96th Street | Station ★ |
+| 0 | Upper West Side — Riverside Local (8) | Station ★ |
 | 1 | Early Train - Move 1 Space Ahead | Early Train |
 | 2 | Empty | NoOp |
 | 3 | Late Train — Lose a Turn | Late Train |
-| 4 | 6 Avenue Express (F) | Express Train |
-| 5 | 6 Avenue Local / 47-50th Streets (F) | Station ★ |
+| 4 | Americas Express (K) | Express Train |
+| 5 | Midtown — Americas Local (P) | Station ★ |
 | 6 | Sick Passenger — Go Back 1 Space | Sick Passenger |
 | 7 | Empty | NoOp |
 | 8 | Early Train — Move 1 Space Ahead | Early Train |
 | 9 | Late Train — Lose a Turn | Late Train |
-| 10 | 8 Avenue Express (A) | Express Train |
-| 11 | Times Square / Eighth Avenue Local (C) | Station ★ |
+| 10 | Hudson Express (U) | Express Train |
+| 11 | Hell's Kitchen — Hudson Local (Y) | Station ★ |
 | 12 | Early Train — Move 1 Space Ahead | Early Train |
 | 13 | Empty | NoOp |
 | 14 | Late Train — Lose a Turn | Late Train |
-| 15 | Broadway Express (Q) | Express Train |
-| 16 | Astoria Blvd / Broadway Local (N) | Station ★ |
+| 15 | Queensboro Express (X) | Express Train |
+| 16 | Astoria — Queensboro Local (H) | Station ★ |
 | 17 | Sick Passenger — Go Back 1 Space | Sick Passenger |
 | 18 | Empty | NoOp |
 | 19 | Early Train — Move 1 Space Ahead | Early Train |
 | 20 | Late Train — Lose a Turn | Late Train |
-| 21 | Seventh Avenue Express (2) | Express Train |
+| 21 | Riverside Express (9) | Express Train |
 
 ★ = Station (corner square). Stations are at indices **0, 5, 11, 16**.
 
@@ -116,7 +118,7 @@ The deck is **shuffled using Fisher-Yates** at the start of every game and again
 
 | Card Title | Points |
 | --- | --- |
-| Finds Metrocard | +5 |
+| Finds Transit Card | +5 |
 | Gets a Seat | +1 |
 | Holds Door for Someone | +2 |
 | Gives Seat to Elderly | +9 |
@@ -131,7 +133,7 @@ The deck is **shuffled using Fisher-Yates** at the start of every game and again
 
 | Card Title | Points |
 | --- | --- |
-| Loses Metrocard | −5 |
+| Loses Transit Card | −5 |
 | Overcrowded Train | −1 |
 | Fell Asleep, Got Robbed, and Woke Up Naked | −9 |
 | Does Not Give Up Seat to Elderly | −9 |
