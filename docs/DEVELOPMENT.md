@@ -204,7 +204,7 @@ The code has two layers:
 | `KarmaDeck` | Shuffled deck (Fisher-Yates); implements `ICardSource`. |
 | `KarmaDeckView` | The draw pile in the centre of the board. At game start it deals the 26 card backs in and riffle-shuffles them (random each game) before the first turn; on each draw the top card flies to the player's token. Visual only. |
 | `PlayerState` | Plain data per player: position, karma total, hand, `loseNextTurn`. |
-| `PlayerToken` | 3D subway-car token built from primitives; `MoveTo` / `SnapTo` a square. |
+| `PlayerToken` | Illustrated top-down subway car (one colour per player, from `Resources/Tokens/`, drawn by `tools/make_tokens.py`) with a soft shadow. Each player drives in their own lane; `MoveTo` / `SnapTo` a square. |
 | `SpinnerController` | Animated spinner; fires `OnSpinComplete(int)`. `Interactable` gates taps. |
 | `BoardDisplay` / `BoardSetup` | Draws the board sprite and creates the `TapZone_00`–`TapZone_21` square colliders that tokens position against. |
 | `ScoreTracker` / `ResultsScreen` | HUD score panel and end-of-game ranking overlay. |
