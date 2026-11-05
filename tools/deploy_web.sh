@@ -11,17 +11,22 @@
 # Usage (Git Bash on Windows, or any bash), from anywhere in the repo:
 #   tools/deploy_web.sh             build check, commit and push
 #   tools/deploy_web.sh --dry-run   do everything except push / enable Pages
+#   tools/deploy_web.sh --build-dir <path>   publish a build from somewhere else
 #
 # Before running: File > Build Profiles > Web > Build into SubwayKarmaGame/Builds/WebGL.
+# The script only reads the build folder; it never changes it.
 set -euo pipefail
 
 DRY_RUN=0
-for arg in "$@"; do
-    case "$arg" in
-        --dry-run) DRY_RUN=1 ;;
-        -h|--help) sed -n '2,16p' "$0"; exit 0 ;;
-        *) echo "Unknown option: $arg (try --help)" >&2; exit 2 ;;
+BUILD_DIR_ARG=""
+while (( $# )); do
+    case "$1" in
+        --dry-run)   DRY_RUN=1 ;;
+        --build-dir) shift; BUILD_DIR_ARG="${1:?--build-dir needs a path}" ;;
+        -h|--help)   sed -n '2,18p' "$0"; exit 0 ;;
+        *) echo "Unknown option: $1 (try --help)" >&2; exit 2 ;;
     esac
+    shift
 done
 
 info()  { printf '\033[1;34m==>\033[0m %s\n' "$*"; }
@@ -29,7 +34,7 @@ warn()  { printf '\033[1;33mwarning:\033[0m %s\n' "$*" >&2; }
 fail()  { printf '\033[1;31merror:\033[0m %s\n' "$*" >&2; exit 1; }
 
 REPO_ROOT="$(git -C "$(dirname "$0")" rev-parse --show-toplevel)"
-BUILD_DIR="$REPO_ROOT/SubwayKarmaGame/Builds/WebGL"
+BUILD_DIR="${BUILD_DIR_ARG:-$REPO_ROOT/SubwayKarmaGame/Builds/WebGL}"
 SETTINGS="$REPO_ROOT/SubwayKarmaGame/ProjectSettings/ProjectSettings.asset"
 BRANCH="gh-pages"
 
@@ -80,6 +85,10 @@ fi
 SLUG="$(printf '%s' "$ORIGIN_URL" | sed -E 's#^(https://github\.com/|git@github\.com:)##; s#\.git$##')"
 OWNER="${SLUG%%/*}"; REPO="${SLUG#*/}"
 PAGES_URL="https://${OWNER,,}.github.io/${REPO}/"
+# Prefer the real address from GitHub (accounts with a custom domain use it instead).
+if command -v gh >/dev/null 2>&1; then
+    PAGES_URL="$(gh api "repos/$SLUG/pages" --jq .html_url 2>/dev/null || echo "$PAGES_URL")"
+fi
 
 # -- 4. Commit the build in a throwaway repository ----------------------------------------
 WORK="$(mktemp -d)"
@@ -110,12 +119,21 @@ fi
 info "Pushing to $BRANCH on $SLUG (replaces the previous deployment)"
 git -C "$WORK" push -q -f "$ORIGIN_URL" "$BRANCH:$BRANCH"
 
-# Turn on Pages for gh-pages the first time (needs the GitHub CLI, logged in).
+# Make sure Pages serves gh-pages (needs the GitHub CLI, logged in): enable it the first
+# time, or switch it over if it's serving another branch (e.g. main).
 if command -v gh >/dev/null 2>&1; then
-    if gh api "repos/$SLUG/pages" >/dev/null 2>&1; then
-        info "GitHub Pages already enabled"
+    current="$(gh api "repos/$SLUG/pages" --jq '.source.branch + " " + .source.path' 2>/dev/null || true)"
+    if [[ "$current" == "$BRANCH /" ]]; then
+        info "GitHub Pages already serves $BRANCH"
+    elif [[ -n "$current" ]]; then
+        if gh api -X PUT "repos/$SLUG/pages" -f "source[branch]=$BRANCH" -f "source[path]=/" >/dev/null 2>&1; then
+            info "Switched GitHub Pages from '$current' to the $BRANCH branch"
+        else
+            warn "Pages is serving '$current'. Switch it: Settings > Pages > Deploy from a branch > $BRANCH / (root)."
+        fi
     elif gh api -X POST "repos/$SLUG/pages" -f "source[branch]=$BRANCH" -f "source[path]=/" >/dev/null 2>&1; then
         info "Enabled GitHub Pages for the $BRANCH branch"
+        PAGES_URL="$(gh api "repos/$SLUG/pages" --jq .html_url 2>/dev/null || echo "$PAGES_URL")"
     else
         warn "Couldn't enable Pages automatically. In GitHub: Settings > Pages > Deploy from a branch > $BRANCH / (root)."
     fi
