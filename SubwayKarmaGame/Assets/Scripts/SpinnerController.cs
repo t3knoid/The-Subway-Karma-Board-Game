@@ -1,6 +1,9 @@
 using System;
 using System.Collections;
 using UnityEngine;
+#if ENABLE_INPUT_SYSTEM
+using UnityEngine.InputSystem;
+#endif
 
 /// <summary>
 /// Animated tap-to-spin arrow that produces a random result 1-6,
@@ -118,7 +121,11 @@ public class SpinnerController : MonoBehaviour
     // -- "Lifted" look while dragging --------------------------------------
     private const float LiftScale        = 1.15f;            // grows 15% when picked up
     private const float LiftSpeed        = 12f;              // ease rate (higher = snappier)
-    private const float LiftedZ          = -1f;              // in front of the tokens (z = -0.5)
+    // Depth matters for clicks as well as drawing: Unity sends a click to the nearest collider,
+    // and the board's square tap zones sit at z = 0. Resting in front of them (and of the
+    // tokens at z = -0.5) means the spinner always gets the click, even when dragged onto squares.
+    private const float RestZ            = -0.6f;
+    private const float LiftedZ          = -1f;              // further forward while being dragged
     private const float ShadowAlpha      = 0.35f;
     private static readonly Vector2 ShadowOffset = new Vector2(0.8f, -1.2f);  // wheel-local units (~4–6% of the wheel) at full lift
 
@@ -324,7 +331,7 @@ public class SpinnerController : MonoBehaviour
         float t = Mathf.InverseLerp(1f, LiftScale, _lift);   // 0 = resting, 1 = fully lifted
 
         Vector3 p = transform.position;
-        transform.position = new Vector3(p.x, p.y, Mathf.Lerp(0f, LiftedZ, t));
+        transform.position = new Vector3(p.x, p.y, Mathf.Lerp(RestZ, LiftedZ, t));
 
         if (_shadow != null)
         {
@@ -402,7 +409,7 @@ public class SpinnerController : MonoBehaviour
         _dragging         = false;
         _longPressHandled = false;
         _pressTime        = Time.unscaledTime;
-        _pressScreenPos   = Input.mousePosition;
+        _pressScreenPos   = PointerScreenPosition();
         _grabOffset       = transform.position - PointerWorld();
     }
 
@@ -415,7 +422,7 @@ public class SpinnerController : MonoBehaviour
             float dpi       = Screen.dpi > 0f ? Screen.dpi : 96f;
             float threshold = Mathf.Max(8f, dpi * DragThresholdInch);
 
-            if ((Input.mousePosition - _pressScreenPos).magnitude < threshold)
+            if ((PointerScreenPosition() - _pressScreenPos).magnitude < threshold)
             {
                 if (Time.unscaledTime - _pressTime >= LongPressSeconds)
                 {
@@ -448,11 +455,30 @@ public class SpinnerController : MonoBehaviour
         if (Interactable) Spin();
     }
 
+    /// <summary>
+    /// Current pointer position in screen pixels: mouse, touch, or the Editor's Device Simulator.
+    /// Prefers the Input System (the legacy Input.mousePosition doesn't follow the Device
+    /// Simulator's simulated touches, which made dragging fail in the Editor only).
+    /// </summary>
+    private static Vector3 PointerScreenPosition()
+    {
+#if ENABLE_INPUT_SYSTEM
+        var pointer = Pointer.current;
+        if (pointer != null) return pointer.position.ReadValue();
+#endif
+#if ENABLE_LEGACY_INPUT_MANAGER
+        if (Input.touchCount > 0) return Input.GetTouch(0).position;
+        return Input.mousePosition;
+#else
+        return Vector3.zero;
+#endif
+    }
+
     private static Vector3 PointerWorld()
     {
         Camera cam = Camera.main;
         if (cam == null) return Vector3.zero;
-        Vector3 p = cam.ScreenToWorldPoint(Input.mousePosition);
+        Vector3 p = cam.ScreenToWorldPoint(PointerScreenPosition());
         p.z = 0f;
         return p;
     }

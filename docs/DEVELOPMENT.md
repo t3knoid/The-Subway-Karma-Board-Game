@@ -202,6 +202,7 @@ The code has two layers:
 | `Rules/TurnResolver` | All movement, card-draw and square-effect rules. Returns events (`Moved`, `CardDrawn`, `LoseNextTurn`, `BonusSpinRequired`, `DeckExhausted`). |
 | `Rules/StandardGame` | Board layout and deck contents, the single source of truth for both. |
 | `KarmaDeck` | Shuffled deck (Fisher-Yates); implements `ICardSource`. |
+| `KarmaDeckView` | The draw pile in the centre of the board. At game start it deals the 26 card backs in and riffle-shuffles them (random each game) before the first turn; on each draw the top card flies to the player's token. Visual only. |
 | `PlayerState` | Plain data per player: position, karma total, hand, `loseNextTurn`. |
 | `PlayerToken` | 3D subway-car token built from primitives; `MoveTo` / `SnapTo` a square. |
 | `SpinnerController` | Animated spinner; fires `OnSpinComplete(int)`. `Interactable` gates taps. |

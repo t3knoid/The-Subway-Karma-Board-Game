@@ -67,6 +67,28 @@ public class GameManager : MonoBehaviour
         }
         IsGameOver = false;
         CurrentTurnIndex = 0;
+
+        if (_startRoutine != null) StopCoroutine(_startRoutine);
+        _startRoutine = StartCoroutine(DealThenStart());
+    }
+
+    /// <summary>True while the opening deal-and-shuffle animation is playing.</summary>
+    public bool IsDealing { get; private set; }
+
+    private Coroutine _startRoutine;
+
+    private System.Collections.IEnumerator DealThenStart()
+    {
+        // Deal and shuffle the karma cards onto the centre of the board first.
+        var deckView = KarmaDeckView.Instance;
+        if (deckView != null && KarmaDeck.Instance != null)
+        {
+            IsDealing = true;
+            yield return deckView.PlayShuffleIntro(KarmaDeck.Instance.RemainingCount);
+            IsDealing = false;
+        }
+
+        _startRoutine = null;
         Debug.Log($"[GameManager] Game started. First turn: {CurrentPlayer.playerName}");
         OnTurnChanged?.Invoke(CurrentPlayer);
     }

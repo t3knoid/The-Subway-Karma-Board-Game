@@ -8,6 +8,7 @@ Output (US Letter, 300 dpi, Avery 5371 business-card layout: 2 x 5 cards of 3.5"
     assets/karma2.jpg    negative cards
     assets/karma3.jpg    special cards
     Karma Cards.pdf      all sheets, ready to print at 100% scale
+    SubwayKarmaGame/Assets/Resources/card_back.png   in-game card back (deck animation)
 
 Usage (from the repo root, Windows; needs Pillow and the Franklin Gothic / Arial Black fonts):
     python -I tools/make_cards.py [preview_dir]
@@ -30,6 +31,12 @@ INK = (0x33, 0x33, 0x33)
 POSITIVE = (0x4f, 0x6e, 0x00)                     # darker board green, readable in print
 NEGATIVE = (0xc8, 0x10, 0x10)
 GUIDE = (0xd0, 0xd0, 0xd0)
+GREEN_CARD = (0x8e, 0xb6, 0x10)                   # board title-card green
+GREEN_STRIPE = (0x84, 0xaa, 0x0e)
+
+# In-game card back (KarmaDeckView.cs cuts the CARD_BACK_H strip out of a 1024 x 1024 texture).
+CARD_BACK_PATH = "SubwayKarmaGame/Assets/Resources/card_back.png"
+CARD_BACK_H = 584                                 # 1024 x 584 ≈ 3.5 : 2, like the printed cards
 
 FONTS = "C:/Windows/Fonts/"
 TITLE_FONT = FONTS + "FRABK.TTF"                  # Franklin Gothic Book (as on the original cards)
@@ -147,6 +154,46 @@ def draw_card(title, points, kind):
     return im
 
 
+def card_back():
+    """In-game card back: the board's green title-card style on a rounded card.
+
+    Returned as a 1024 x 1024 power-of-two texture (Unity imports it without resizing)
+    with the 1024 x CARD_BACK_H card art centred vertically; the game cuts out that strip.
+    """
+    s = 2                                          # supersample
+    w, h = 1024 * s, CARD_BACK_H * s
+    card = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+    d = ImageDraw.Draw(card)
+    d.rounded_rectangle([0, 0, w - 1, h - 1], radius=48 * s, fill=INK)                 # charcoal edge
+    m = 22 * s
+    field = Image.new("RGBA", (w, h), GREEN_CARD + (255,))                              # green field
+    fd = ImageDraw.Draw(field)
+    for x in range(-h, w, 46 * s):                                                      # subtle stripes
+        fd.line([(x, h), (x + h, 0)], fill=GREEN_STRIPE, width=12 * s)
+    mask = Image.new("L", (w, h), 0)
+    ImageDraw.Draw(mask).rounded_rectangle([m, m, w - 1 - m, h - 1 - m], radius=32 * s, fill=255)
+    card.paste(field, (0, 0), mask)                                                     # stripes stay inside
+    d.rounded_rectangle([m, m, w - 1 - m, h - 1 - m], radius=32 * s, outline=(255, 255, 255), width=5 * s)
+
+    # Mini title card in the middle, like the board's centre.
+    tw, th = int(w * 0.62), int(h * 0.52)
+    t = Image.new("RGBA", (tw, th), (0, 0, 0, 0))
+    td = ImageDraw.Draw(t)
+    td.rectangle([0, 0, tw - 1, th - 1], fill=INK)
+    small = ImageFont.truetype(FONTS + "GOTHIC.TTF", int(th * 0.20))
+    big = ImageFont.truetype(FONTS + "GOTHICB.TTF", int(th * 0.44))
+    for text, f, y in (("The Subway", small, 0.12), ("KARMA", big, 0.40)):
+        tw_, _, b = text_size(td, text, f)
+        td.text(((tw - tw_) / 2 - b[0], th * y - b[1]), text, font=f, fill=GREEN_CARD)
+    # Level on the card: the in-game pile is already tilted to match the board's title card.
+    card.alpha_composite(t, ((w - t.width) // 2, (h - t.height) // 2))
+    card = card.resize((1024, CARD_BACK_H), Image.LANCZOS)
+
+    tex = Image.new("RGBA", (1024, 1024), (0, 0, 0, 0))
+    tex.alpha_composite(card, (0, (1024 - CARD_BACK_H) // 2))
+    return tex
+
+
 def dashed(d, p0, p1, dash=18, gap=14):
     (x0, y0), (x1, y1) = p0, p1
     length = math.hypot(x1 - x0, y1 - y0)
@@ -190,6 +237,9 @@ def main():
         p.save(f"assets/karma{n}.jpg", quality=92, dpi=(DPI, DPI))
     pages[0].save("Karma Cards.pdf", save_all=True, append_images=pages[1:], resolution=DPI)
     print(f"{len(deck)} cards -> {len(pages)} sheets: assets/karma1..{len(pages)}.jpg, Karma Cards.pdf")
+
+    card_back().save(CARD_BACK_PATH, optimize=True)
+    print("card back ->", CARD_BACK_PATH)
 
     if len(sys.argv) > 1:                         # optional small previews for review
         os.makedirs(sys.argv[1], exist_ok=True)
