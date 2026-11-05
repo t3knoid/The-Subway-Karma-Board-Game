@@ -262,36 +262,9 @@ When you add or change a rule, add a test in `TurnResolverTests` and update `doc
 
 ## Building
 
-All builds use the single scene `Assets/Scenes/MainGame.unity`, which is already in *File → Build Profiles*.
+See **[BUILDING.md](BUILDING.md)** for per-platform requirements and step-by-step builds: Android (APK and Play Store AAB), iOS, Web/GitHub Pages, Windows, macOS and Linux. It also covers the `Builds/<Platform>/` output layout, command-line builds and known issues to fix before a mobile release.
 
-### Android (primary target)
-
-Current player settings: product name **Subway Karma**, company **t3knoid**, min API **26**, architecture **ARM64**, auto-rotation.
-
-1. *File → Build Profiles → Android → Switch Platform*.
-2. *Player Settings → Other Settings*: set a **Package Name** (e.g. `com.t3knoid.subwaykarma`). It's unset, so Unity generates a default. Keep **Scripting Backend = IL2CPP** (required for ARM64).
-3. Connect a device with USB debugging on, then **Build And Run**, or **Build** to produce an `.apk`.
-4. For a Play Store upload, enable *Build App Bundle (Google Play)* and configure a keystore under *Publishing Settings*. `.apk`, `.aab` and keystores must never be committed.
-
-### WebGL
-
-1. *File → Build Profiles → Web → Switch Platform*.
-2. **Build** into `WebGL/` (git-ignored; reserved for GitHub Pages deployment). Use **Build And Run** to have Unity serve it on a local web server. Opening `index.html` directly from disk does not work.
-
-### Desktop (Windows / macOS)
-
-*File → Build Profiles → Windows/Mac → Build*, output to `Builds/` (git-ignored). Useful for quick playtests without a device.
-
-### Command-line builds
-
-Unity has no built-in "build this profile" CLI switch, so a scripted build needs a small editor script (e.g. `Assets/Editor/BuildScript.cs` with a static method calling `BuildPipeline.BuildPlayer`) invoked with:
-
-```sh
-Unity -batchmode -quit -projectPath SubwayKarmaGame \
-  -buildTarget Android -executeMethod BuildScript.BuildAndroid -logFile -
-```
-
-The repository doesn't have one yet. Add it when CI is set up.
+Quick local playtest: *File → Build Profiles → Windows → Build* into `SubwayKarmaGame/Builds/Windows/`.
 
 ---
 
