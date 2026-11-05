@@ -23,6 +23,7 @@ on:
 permissions:
   contents: write        # push the gh-pages branch
   pages: read            # report which branch Pages serves, and the site address
+  checks: write          # unity-test-runner posts the test results as a check run
 
 concurrency:             # one deploy at a time; don't cancel one that's publishing
   group: deploy-web
