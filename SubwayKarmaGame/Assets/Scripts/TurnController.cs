@@ -22,7 +22,7 @@ public class TurnController : MonoBehaviour
     private const float CpuThinkMin     = 0.8f;
     private const float CpuThinkMax     = 1.2f;
     private const float SpinResultPause = 0.5f;   // let the player read the spinner
-    private const float CardPause       = 0.4f;
+    private const float CardPause       = 0.25f;  // after the card has flown to the token
     private const float PenaltyPause    = 0.3f;
     private const float SkipTurnPause   = 0.8f;
 
@@ -198,6 +198,9 @@ public class TurnController : MonoBehaviour
                     break;
 
                 case TurnEventKind.CardDrawn:
+                    // Top card of the centre pile flies to the player's token.
+                    if (KarmaDeckView.Instance != null && player.Token != null)
+                        yield return KarmaDeckView.Instance.TakeTopCard(player.Token.transform.position);
                     player.AddCard(e.Card);
                     yield return new WaitForSeconds(CardPause);
                     break;
