@@ -36,7 +36,7 @@ For first-time setup (Git LFS, Unity Hub, the Editor and code editors), start wi
 | --- | --- | --- |
 | Product name / company | Subway Karma / t3knoid | Player Settings |
 | Version | 1.0 | Player Settings → Other Settings |
-| Default orientation | **Auto Rotation** (see [known issues](#known-issues-to-fix-before-a-mobile-release)) | Player Settings → Resolution and Presentation |
+| Orientation | Auto Rotation, **landscape only** (Landscape Left and Right; portrait disabled) | Player Settings → Resolution and Presentation |
 | Active input handling | Both (legacy Input Manager + Input System) | Player Settings → Other Settings |
 | Render pipeline | Built-in | Project Settings → Graphics |
 | Android min API / architecture | 26 (Android 8.0) / ARM64 | Player Settings → Other Settings |
@@ -233,9 +233,10 @@ A non-zero exit code means the build failed. Check the log file. Signing secrets
 
 ## Known issues to fix before a mobile release
 
+Screen rotation is already handled. The game is landscape-only, and the board, tokens and spinner re-fit when a phone flips between the two landscape directions or a desktop window is resized.
+
 | Issue | Why it matters | Fix |
 | --- | --- | --- |
-| **Auto-rotation** | The board is only fitted to the screen once, at startup. Rotating a phone mid-game leaves the board the wrong size and tokens out of place. | Quickest: *Resolution and Presentation → Default Orientation = Landscape Left* (or allow only the two landscape orientations). Alternatively, refit the board and tokens when the screen changes. |
 | **Notches and rounded corners** | The score panel sits in the top-right corner, where a camera cutout can cover it. | Lay out the UI inside `Screen.safeArea`. |
 | **Touch input** | Spinning and dragging use mouse events, which Unity also generates from single touches. Expected to work, but untested on a device. | Test tap, drag and press-and-hold-to-reset on a real phone. |
 | **App icon and splash screen** | Stores reject builds that use the default Unity icon. | *Player Settings → Icon* and *Splash Image*. |

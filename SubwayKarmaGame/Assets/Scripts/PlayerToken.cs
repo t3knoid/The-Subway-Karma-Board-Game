@@ -58,6 +58,22 @@ public class PlayerToken : MonoBehaviour
     // -- State -------------------------------------------------------------
     private int   _slot;
     private Color _color;
+    private int   _boardIndex;   // square the token is on (or heading to while moving)
+    private bool  _moving;
+
+    // Tap-zone transforms, looked up once (zones live for the whole session).
+    private static readonly Transform[] ZoneCache = new Transform[BoardManager.BoardSize];
+
+    // -- Lifecycle ---------------------------------------------------------
+
+    void OnEnable()  => BoardDisplay.OnBoardFitted += HandleBoardFitted;
+    void OnDisable() => BoardDisplay.OnBoardFitted -= HandleBoardFitted;
+
+    /// <summary>Screen rotated or resized: the board moved, so follow it.</summary>
+    private void HandleBoardFitted()
+    {
+        if (!_moving) SnapTo(_boardIndex);   // a move in progress re-targets every frame
+    }
 
     // -- Factory -----------------------------------------------------------
 
@@ -86,6 +102,7 @@ public class PlayerToken : MonoBehaviour
     /// <summary>Instantly moves the token to boardIndex.</summary>
     public void SnapTo(int boardIndex)
     {
+        _boardIndex = boardIndex;
         transform.position = SquareWorldPos(boardIndex);
         transform.eulerAngles = new Vector3(TiltX, 0f, DirectionZ(boardIndex));
     }
@@ -103,29 +120,31 @@ public class PlayerToken : MonoBehaviour
 
     private IEnumerator MoveCoroutine(int target, Action onComplete)
     {
-        // Determine current index by reverse-looking up closest tap zone.
-        // We animate through each intermediate square for visual clarity.
-        Vector3 currentPos   = transform.position;
-        Vector3 targetPos    = SquareWorldPos(target);
-        float   targetZRot   = DirectionZ(target);
+        // Callers (TurnController) move one square at a time.
+        // Endpoints are recomputed each frame from the squares, so a screen
+        // rotation or resize mid-move still lands on the right square.
+        int   from       = _boardIndex;
+        float targetZRot = DirectionZ(target);
+        float startZRot  = transform.eulerAngles.z;
+        float elapsed    = 0f;
 
-        float elapsed = 0f;
-        Vector3 startPos  = currentPos;
-        float   startZRot = transform.eulerAngles.z;
+        _moving     = true;
+        _boardIndex = target;
 
         while (elapsed < MoveSpeed)
         {
             elapsed += Time.deltaTime;
             float t = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(elapsed / MoveSpeed));
-            transform.position = Vector3.Lerp(startPos, targetPos, t);
+            transform.position = Vector3.Lerp(SquareWorldPos(from), SquareWorldPos(target), t);
             // Lerp Z rotation (handle wrap-around via delta)
             float zDelta = Mathf.DeltaAngle(startZRot, targetZRot);
             transform.eulerAngles = new Vector3(TiltX, 0f, startZRot + zDelta * t);
             yield return null;
         }
 
-        transform.position     = targetPos;
+        transform.position     = SquareWorldPos(target);
         transform.eulerAngles  = new Vector3(TiltX, 0f, targetZRot);
+        _moving = false;
         onComplete?.Invoke();
     }
 
@@ -133,8 +152,14 @@ public class PlayerToken : MonoBehaviour
 
     private Vector3 SquareWorldPos(int boardIndex)
     {
-        var zone = GameObject.Find($"TapZone_{boardIndex:D2}");
-        if (zone == null) return Vector3.zero;
+        int i = ((boardIndex % BoardManager.BoardSize) + BoardManager.BoardSize) % BoardManager.BoardSize;
+        if (ZoneCache[i] == null)
+        {
+            var found = GameObject.Find($"TapZone_{i:D2}");
+            if (found == null) return Vector3.zero;
+            ZoneCache[i] = found.transform;
+        }
+        var zone = ZoneCache[i];
 
         int safeSlot = Mathf.Clamp(_slot, 0, SlotOffsets.Length - 1);
         return zone.transform.position

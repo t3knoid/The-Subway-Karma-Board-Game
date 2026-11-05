@@ -33,10 +33,30 @@ public class BoardDisplay : MonoBehaviour
         // Start() is guaranteed to run after the first frame, when the camera is ready.
     }
 
+    /// <summary>
+    /// Fired after the board is resized to fit the screen (startup, rotation,
+    /// window resize). Tap zones are children of the board and follow
+    /// automatically; world-space objects such as PlayerTokens re-snap on this.
+    /// </summary>
+    public static event System.Action OnBoardFitted;
+
+    private int _lastScreenWidth;
+    private int _lastScreenHeight;
+
     void Start() => FitToCamera();
+
+    void LateUpdate()
+    {
+        // Device rotation (landscape left ↔ right), split-screen, or desktop window resize.
+        if (Screen.width != _lastScreenWidth || Screen.height != _lastScreenHeight)
+            FitToCamera();
+    }
 
     private void FitToCamera()
     {
+        _lastScreenWidth  = Screen.width;
+        _lastScreenHeight = Screen.height;
+
         Camera cam = Camera.main;
         if (cam == null || _renderer.sprite == null) return;
 
@@ -55,5 +75,7 @@ public class BoardDisplay : MonoBehaviour
         transform.localScale = new Vector3(scale, scale, 1f);
         transform.position   = new Vector3(cam.transform.position.x,
                                            cam.transform.position.y, 0f);
+
+        OnBoardFitted?.Invoke();
     }
 }
