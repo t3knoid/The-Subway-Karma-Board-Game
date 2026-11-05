@@ -4,13 +4,11 @@ using System.Linq;
 using UnityEngine;
 
 /// <summary>
-/// Singleton that owns the list of active PlayerState objects and the
-/// current turn index. For solitaire there is one player; multiplayer
-/// adds more via RegisterPlayer().
+/// Singleton that owns the list of players and whose turn it is.
 ///
-/// Turn flow (to be driven by a future turn controller):
-///   GameManager.Instance.CurrentPlayer  — whose turn it is
-///   GameManager.Instance.NextTurn()     — advance to next player
+/// It does not play turns itself: TurnController listens to OnTurnChanged,
+/// plays the turn (human or computer) and then calls NextTurn() or
+/// TriggerEndGame().
 /// </summary>
 public class GameManager : MonoBehaviour
 {
@@ -18,7 +16,7 @@ public class GameManager : MonoBehaviour
     public static GameManager Instance { get; private set; }
 
     // -- Events -------------------------------------------------------------
-    /// Fired when the active player changes. Argument: new current player.
+    /// Fired when a turn begins (including the first). Argument: player to move.
     public event Action<PlayerState> OnTurnChanged;
 
     /// Fired when a new player is registered.
@@ -29,14 +27,13 @@ public class GameManager : MonoBehaviour
 
     // -- State --------------------------------------------------------------
     public IReadOnlyList<PlayerState> Players => _players;
-    public int CurrentTurnIndex { get; private set; } = 0;
-    public bool IsGameOver { get; private set; } = false;
+    public int  CurrentTurnIndex { get; private set; } = 0;
+    public bool IsGameOver       { get; private set; } = false;
 
     public PlayerState CurrentPlayer =>
         _players.Count > 0 ? _players[CurrentTurnIndex] : null;
 
-    private readonly List<PlayerState> _players         = new List<PlayerState>();
-    private ComputerPlayer             _computerPlayer;
+    private readonly List<PlayerState> _players = new List<PlayerState>();
 
     // -- Lifecycle ----------------------------------------------------------
     void Awake()
@@ -44,19 +41,6 @@ public class GameManager : MonoBehaviour
         if (Instance != null && Instance != this) { Destroy(gameObject); return; }
         Instance = this;
         DontDestroyOnLoad(gameObject);
-    }
-
-    void Start()
-    {
-        // Subscribe to deck-exhausted event once KarmaDeck is ready.
-        if (KarmaDeck.Instance != null)
-            KarmaDeck.Instance.OnDeckExhausted += TriggerEndGame;
-    }
-
-    void OnDestroy()
-    {
-        if (KarmaDeck.Instance != null)
-            KarmaDeck.Instance.OnDeckExhausted -= TriggerEndGame;
     }
 
     // -- Public API ---------------------------------------------------------
@@ -73,52 +57,47 @@ public class GameManager : MonoBehaviour
         OnPlayerRegistered?.Invoke(player);
     }
 
-    /// <summary>
-    /// Registers the ComputerPlayer controller used to auto-drive CPU turns.
-    /// </summary>
-    public void RegisterComputerPlayer(ComputerPlayer cp)
+    /// <summary>Starts play with player 0's turn.</summary>
+    public void StartGame()
     {
-        _computerPlayer = cp;
-        Debug.Log($"[GameManager] ComputerPlayer registered.");
+        if (_players.Count == 0)
+        {
+            Debug.LogError("[GameManager] StartGame called with no players.");
+            return;
+        }
+        IsGameOver = false;
+        CurrentTurnIndex = 0;
+        Debug.Log($"[GameManager] Game started. First turn: {CurrentPlayer.playerName}");
+        OnTurnChanged?.Invoke(CurrentPlayer);
     }
 
-    /// <summary>
-    /// Advances to the next player's turn (wraps around).
-    /// Enables the spinner for human turns; triggers CPU turns automatically.
-    /// </summary>
+    /// <summary>Advances to the next player's turn (wraps around).</summary>
     public void NextTurn()
     {
-        if (_players.Count == 0) return;
+        if (_players.Count == 0 || IsGameOver) return;
         CurrentTurnIndex = (CurrentTurnIndex + 1) % _players.Count;
         Debug.Log($"[GameManager] Turn → {CurrentPlayer.playerName}");
         OnTurnChanged?.Invoke(CurrentPlayer);
-
-        // Show spinner only on the human player's turn.
-        var spinner = SpinnerController.Instance;
-        if (spinner != null)
-            spinner.gameObject.SetActive(CurrentPlayer.playerType == PlayerType.Human);
-
-        // Auto-drive the computer's turn.
-        if (CurrentPlayer.playerType == PlayerType.Computer && _computerPlayer != null)
-            _computerPlayer.TakeTurn();
     }
 
     /// <summary>
-    /// Resets all player states and restarts from player 0's turn.
-    /// Call on Play Again.
+    /// Resets all players and the deck, then starts a new game. Call on Play Again.
     /// </summary>
     public void ResetGame()
     {
-        IsGameOver = false;
-        CurrentTurnIndex = 0;
-        foreach (var p in _players) { p.Reset(); p.Token?.SnapTo(0); }
+        foreach (var p in _players)
+        {
+            p.Reset();
+            p.Token?.SnapTo(p.boardIndex);
+        }
         KarmaDeck.Instance?.BuildDeck();
         Debug.Log("[GameManager] Game reset.");
+        StartGame();
     }
 
     /// <summary>
-    /// Called when the karma deck is exhausted. Sorts players by karmaTotal
-    /// descending and fires OnGameOver with the ranked list.
+    /// Called by TurnController once the turn that drew the last card has
+    /// finished animating. Ranks players by karmaTotal and fires OnGameOver.
     /// </summary>
     public void TriggerEndGame()
     {

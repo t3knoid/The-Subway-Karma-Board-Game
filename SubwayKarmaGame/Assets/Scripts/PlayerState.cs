@@ -8,51 +8,49 @@ using UnityEngine;
 public enum PlayerType { Human, Computer }
 
 /// <summary>
-/// Holds the runtime state for a single player:
-///   - karmaTotal  : running sum of all drawn card points
-///   - hand        : ordered list of every card drawn this game
-///   - boardIndex  : current position on the 22-square board
+/// Runtime state for one player (plain data, one instance per player):
+///   - karmaTotal   : running sum of all drawn card points
+///   - hand         : ordered list of every card drawn this game
+///   - boardIndex   : current position on the 22-square board
+///   - loseNextTurn : set by a Late Train square
 ///
-/// In solitaire there is one PlayerState instance (player 0).
-/// In multiplayer, create one per player and identify by playerId.
+/// Players are created by GameSetupScreen and owned by GameManager.
 /// </summary>
-public class PlayerState : MonoBehaviour
+public class PlayerState
 {
     // -- Events -------------------------------------------------------------
     /// Fired after karmaTotal changes. Argument: new total.
     public event Action<int> OnKarmaChanged;
 
-    // -- Singleton (solitaire) ----------------------------------------------
-    public static PlayerState Instance { get; private set; }
-
-    void Awake()
-    {
-        if (Instance != null && Instance != this) { Destroy(gameObject); return; }
-        Instance = this;
-        DontDestroyOnLoad(gameObject);
-    }
-
     // -- Identity -----------------------------------------------------------
-    public int        playerId    = 0;
-    public string     playerName  = "Player";
-    public PlayerType playerType  = PlayerType.Human;
+    public readonly int        playerId;
+    public readonly string     playerName;
+    public readonly PlayerType playerType;
 
     // -- Token --------------------------------------------------------------
-    /// <summary>Visual subway-car token for this player. Assigned after game mode is chosen.</summary>
+    /// <summary>Visual subway-car token for this player.</summary>
     public PlayerToken Token;
 
-    // -- Board position -----------------------------------------------------
-    public int boardIndex = 0;
+    // -- Board position / turn state ------------------------------------------
+    public int  boardIndex   = 0;
+    public bool loseNextTurn = false;
 
     // -- Karma totals -------------------------------------------------------
-    public int            karmaTotal { get; private set; } = 0;
-    public List<KarmaCard> hand      { get; private set; } = new List<KarmaCard>();
+    public int             karmaTotal { get; private set; } = 0;
+    public List<KarmaCard> hand       { get; private set; } = new List<KarmaCard>();
+
+    public PlayerState(int playerId, string playerName, PlayerType playerType)
+    {
+        this.playerId   = playerId;
+        this.playerName = playerName;
+        this.playerType = playerType;
+    }
 
     // -- Public API ---------------------------------------------------------
 
     /// <summary>
     /// Adds a drawn card to the player's hand and updates karmaTotal.
-    /// Special solitaire cards (InstantKarma / NoOp) contribute 0 points.
+    /// Special cards (InstantKarma / NoOp) contribute 0 points.
     /// </summary>
     public void AddCard(KarmaCard card)
     {
@@ -70,9 +68,11 @@ public class PlayerState : MonoBehaviour
     /// <summary>Resets state for a new game or Play Again.</summary>
     public void Reset()
     {
-        boardIndex = 0;
-        karmaTotal = 0;
+        boardIndex   = 0;
+        loseNextTurn = false;
+        karmaTotal   = 0;
         hand.Clear();
+        OnKarmaChanged?.Invoke(karmaTotal);
         Debug.Log($"[PlayerState] {playerName} state reset.");
     }
 }

@@ -18,8 +18,8 @@ public enum KarmaCardType
 [System.Serializable]
 public class KarmaCard
 {
-    public readonly string       title;
-    public readonly int          points;
+    public readonly string        title;
+    public readonly int           points;
     public readonly KarmaCardType cardType;
 
     public KarmaCard(string title, int points, KarmaCardType cardType = KarmaCardType.Standard)
@@ -29,6 +29,8 @@ public class KarmaCard
         this.cardType = cardType;
     }
 
-    public override string ToString() =>
-        $"[{cardType}] {title} ({(points >= 0 ? "+" : "")}{points})";
+    public override string ToString()
+    {
+        return string.Format("[{0}] {1} ({2}{3})", cardType, title, points >= 0 ? "+" : "", points);
+    }
 }

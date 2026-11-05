@@ -39,6 +39,9 @@ public class SpinnerController : MonoBehaviour
     // -- State --------------------------------------------------------------
     public bool IsSpinning => _isSpinning;
 
+    /// When false, taps are ignored (TurnController locks it outside a human's spin).
+    public bool Interactable { get; set; } = true;
+
     // -- Animation settings -------------------------------------------------
     private const float MinDuration  = 1.5f;
     private const float MaxDuration  = 2.5f;
@@ -162,7 +165,13 @@ public class SpinnerController : MonoBehaviour
     // -- Input --------------------------------------------------------------
     void OnMouseDown()
     {
-        Spin();
+        if (Interactable) Spin();
+    }
+
+    // Hiding the spinner stops its coroutine; don't leave it stuck mid-spin.
+    void OnDisable()
+    {
+        _isSpinning = false;
     }
 
     // -- Public API ---------------------------------------------------------

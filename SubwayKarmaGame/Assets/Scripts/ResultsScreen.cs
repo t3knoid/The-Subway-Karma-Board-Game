@@ -44,15 +44,12 @@ public class ResultsScreen : MonoBehaviour
     private Canvas        _canvas;
     private GameObject    _panel;
     private Transform     _rowContainer;
-    private SpinnerController _spinner;
 
     // -- Lifecycle ----------------------------------------------------------
     void Start()
     {
         BuildCanvas();
         _panel.SetActive(false);   // hidden until game over
-
-        _spinner = Object.FindAnyObjectByType<SpinnerController>();
 
         if (GameManager.Instance != null)
             GameManager.Instance.OnGameOver += Show;
@@ -135,9 +132,6 @@ public class ResultsScreen : MonoBehaviour
     // -- Show results -------------------------------------------------------
     private void Show(List<PlayerState> ranked)
     {
-        // Disable spinner input during results screen.
-        if (_spinner != null) _spinner.gameObject.SetActive(false);
-
         // Clear previous result rows.
         foreach (Transform child in _rowContainer) Destroy(child.gameObject);
 
@@ -175,8 +169,7 @@ public class ResultsScreen : MonoBehaviour
     private void OnPlayAgainClicked()
     {
         _panel.SetActive(false);
-        if (_spinner != null) _spinner.gameObject.SetActive(true);
-        GameManager.Instance?.ResetGame();
+        GameManager.Instance?.ResetGame();   // starts the first turn; TurnController shows the spinner
         Debug.Log("[ResultsScreen] Play Again.");
     }
 
